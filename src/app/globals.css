@@ -1,0 +1,145 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html {
+    -webkit-tap-highlight-color: transparent;
+  }
+  body {
+    @apply bg-slate-50 text-slate-900 antialiased;
+  }
+}
+
+@layer components {
+  .container-x {
+    @apply mx-auto w-full max-w-7xl px-4 sm:px-6 lg:px-8;
+  }
+  .btn {
+    @apply inline-flex items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold transition focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-60;
+  }
+  .btn-primary {
+    @apply btn bg-brand-600 text-white shadow-sm hover:bg-brand-700 hover:shadow-lift;
+  }
+  .btn-secondary {
+    @apply btn border border-slate-200 bg-white text-slate-800 hover:border-slate-300 hover:bg-slate-50;
+  }
+  .btn-danger {
+    @apply btn bg-rose-600 text-white hover:bg-rose-700;
+  }
+  .btn-success {
+    @apply btn bg-emerald-600 text-white hover:bg-emerald-700;
+  }
+  .btn-ghost {
+    @apply btn text-slate-600 hover:bg-slate-100;
+  }
+  .btn-sm {
+    @apply px-3 py-1.5 text-xs;
+  }
+  .input {
+    @apply w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm text-slate-900 placeholder:text-slate-400 focus:border-brand-500 focus:outline-none focus:ring-4 focus:ring-brand-500/15 disabled:bg-slate-100;
+  }
+  .label {
+    @apply mb-1.5 block text-sm font-medium text-slate-700;
+  }
+  .card {
+    @apply rounded-2xl border border-slate-200/70 bg-white shadow-card;
+  }
+  .badge {
+    @apply inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-medium ring-1 ring-inset;
+  }
+  .table-x {
+    @apply w-full text-left text-sm;
+  }
+  .table-x th {
+    @apply whitespace-nowrap border-b border-slate-200 bg-slate-50 px-4 py-3 text-xs font-semibold uppercase tracking-wide text-slate-500;
+  }
+  .table-x td {
+    @apply border-b border-slate-100 px-4 py-3 align-middle;
+  }
+}
+
+/* Admin dark surfaces. Storefront stays light. */
+html.dark .admin-root {
+  background-color: #0b1220;
+  color: #e2e8f0;
+}
+html.dark .admin-root .card {
+  background-color: #111a2e;
+  border-color: #243049;
+  color: #e2e8f0;
+}
+html.dark .admin-root .input {
+  background-color: #0b1220;
+  border-color: #243049;
+  color: #f8fafc;
+}
+html.dark .admin-root .input:disabled {
+  background-color: #1c2640;
+}
+html.dark .admin-root .label {
+  color: #cbd5e1;
+}
+html.dark .admin-root .btn-secondary {
+  background-color: #1c2640;
+  border-color: #334155;
+  color: #e2e8f0;
+}
+html.dark .admin-root .btn-secondary:hover {
+  background-color: #243049;
+}
+html.dark .admin-root .btn-ghost {
+  color: #cbd5e1;
+}
+html.dark .admin-root .btn-ghost:hover {
+  background-color: #1c2640;
+}
+html.dark .admin-root .table-x th {
+  background-color: #0b1220;
+  border-color: #243049;
+  color: #94a3b8;
+}
+html.dark .admin-root .table-x td {
+  border-color: #1e293b;
+}
+html.dark .admin-root .bg-white,
+html.dark .admin-root .bg-white\/90,
+html.dark .admin-root .bg-white\/95 {
+  background-color: #111a2e;
+}
+html.dark .admin-root .bg-slate-50,
+html.dark .admin-root .bg-slate-50\/50,
+html.dark .admin-root .bg-slate-50\/60 {
+  background-color: #0b1220;
+}
+html.dark .admin-root .bg-slate-100 {
+  background-color: #1c2640;
+}
+html.dark .admin-root .text-slate-900,
+html.dark .admin-root .text-slate-800 {
+  color: #f8fafc;
+}
+html.dark .admin-root .text-slate-700,
+html.dark .admin-root .text-slate-600 {
+  color: #cbd5e1;
+}
+html.dark .admin-root .border-slate-200,
+html.dark .admin-root .border-slate-200\/70,
+html.dark .admin-root .border-slate-100 {
+  border-color: #243049;
+}
+html.dark .admin-root .hover\:bg-slate-50:hover,
+html.dark .admin-root .hover\:bg-slate-100:hover {
+  background-color: #1c2640;
+}
+html.dark .admin-root .divide-slate-100 > :not([hidden]) ~ :not([hidden]),
+html.dark .admin-root .divide-y > :not([hidden]) ~ :not([hidden]) {
+  border-color: #243049;
+}
+
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  scrollbar-width: none;
+}
