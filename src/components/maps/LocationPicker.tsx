@@ -11,7 +11,7 @@ export interface PickedLocation {
   address: string;
 }
 
-type Prediction = { description: string; place_id: string };
+type Prediction = { description: string; place_id: string; lat?: number; lng?: number };
 
 const ISB = { lat: 33.6844, lng: 73.0479 };
 
@@ -39,7 +39,7 @@ async function predict(input: string, allowClient: boolean): Promise<Prediction[
         }
       );
     });
-    if (found) return found;
+    if (found?.length) return found;
   }
   const res = await fetch(`/api/places?q=${encodeURIComponent(input)}`);
   const data = (await res.json()) as { predictions?: Prediction[] };
@@ -150,7 +150,10 @@ export function LocationPicker({
     skipSearch.current = true;
     setQuery(p.description);
     setPreds([]);
-    const hit = await resolvePlace(p.place_id, p.description, mapOk);
+    const hit =
+      p.lat != null && p.lng != null
+        ? { lat: p.lat, lng: p.lng, address: p.description }
+        : await resolvePlace(p.place_id, p.description, mapOk);
     if (!hit) {
       setSearchError("Could not open that place. Try another result.");
       return;
