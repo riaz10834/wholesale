@@ -5,6 +5,7 @@ import { useSearchParams } from "next/navigation";
 import { Loader2 } from "lucide-react";
 import { supabaseBrowser } from "@/lib/supabase/client";
 import { useToast } from "@/components/providers/ToastProvider";
+import { PasswordField } from "@/components/ui/PasswordField";
 import { errMsg } from "@/lib/utils";
 
 function LoginForm() {
@@ -52,7 +53,7 @@ function LoginForm() {
       </div>
       <div>
         <label className="label" htmlFor="pw">Password</label>
-        <input id="pw" type="password" required minLength={6} className="input" value={password} onChange={(e) => setPassword(e.target.value)} autoComplete="current-password" />
+        <PasswordField id="pw" required minLength={6} value={password} onChange={(e) => setPassword(e.target.value)} autoComplete="current-password" />
       </div>
       <button className="btn-primary w-full py-3" disabled={loading}>
         {loading && <Loader2 className="h-4 w-4 animate-spin" />} Sign in

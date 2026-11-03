@@ -4,6 +4,7 @@ import { KeyRound, Loader2, Plus, Radio, X } from "lucide-react";
 import { supabaseBrowser } from "@/lib/supabase/client";
 import { useToast } from "@/components/providers/ToastProvider";
 import { PageHeader, Empty } from "@/components/ui/PageHeader";
+import { PasswordField } from "@/components/ui/PasswordField";
 import type { Profile } from "@/lib/types";
 import { PHONE_RE, isLive, timeAgo } from "@/lib/utils";
 
@@ -97,7 +98,7 @@ export default function DeliveryPersons() {
           <div><label className="label">Full name</label><input className="input" value={f.full_name} onChange={(e) => setF({ ...f, full_name: e.target.value })} /></div>
           <div><label className="label">Phone</label><input className="input" value={f.phone} onChange={(e) => setF({ ...f, phone: e.target.value })} /></div>
           <div><label className="label">Login email</label><input type="email" className="input" value={f.email} onChange={(e) => setF({ ...f, email: e.target.value })} /></div>
-          <div><label className="label">Password</label><input type="text" className="input" value={f.password} onChange={(e) => setF({ ...f, password: e.target.value })} /></div>
+          <div><label className="label">Password</label><PasswordField value={f.password} onChange={(e) => setF({ ...f, password: e.target.value })} autoComplete="new-password" minLength={8} /></div>
           <div><button disabled={saving} className="btn-primary">{saving && <Loader2 className="h-4 w-4 animate-spin" />} Create account</button></div>
         </form>
       )}
