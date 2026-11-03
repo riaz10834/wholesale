@@ -156,6 +156,15 @@ export interface Expense {
   created_at: string;
 }
 
+export interface StoreSettings {
+  id: number;
+  warehouse_name: string;
+  warehouse_address: string | null;
+  warehouse_lat: number | null;
+  warehouse_lng: number | null;
+  updated_at: string;
+}
+
 export interface Notification {
   id: string;
   title: string;

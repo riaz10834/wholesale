@@ -14,9 +14,13 @@ export interface PickedLocation {
 export function LocationPicker({
   value,
   onChange,
+  searchPlaceholder = "Search your shop / area address",
+  emptyHint = "Tap on the map, search, or use GPS to set your delivery location. Drag the pin to adjust.",
 }: {
   value: PickedLocation | null;
   onChange: (v: PickedLocation) => void;
+  searchPlaceholder?: string;
+  emptyHint?: string;
 }) {
   const { isLoaded, loadError, missingKey } = useMaps();
   const [map, setMap] = useState<google.maps.Map | null>(null);
@@ -132,7 +136,7 @@ export function LocationPicker({
       >
         <input
           className="input"
-          placeholder="Search your shop / area address"
+          placeholder={searchPlaceholder}
           onKeyDown={(e) => {
             if (e.key === "Enter") e.preventDefault();
           }}
@@ -175,7 +179,7 @@ export function LocationPicker({
             <span className="font-medium text-slate-700">Selected:</span> {value.address}
           </>
         ) : (
-          "Tap on the map, search, or use GPS to set your delivery location. Drag the pin to adjust."
+          emptyHint
         )}
       </p>
     </div>

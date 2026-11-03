@@ -3,7 +3,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState } from "react";
 import {
-  BarChart3, Boxes, CreditCard, LayoutDashboard, LogOut, MapPinned, Menu, Package, Receipt, ShoppingBag, Store, Tags, Truck, Users, X,
+  BarChart3, Boxes, CreditCard, LayoutDashboard, LogOut, MapPinned, Menu, Package, Receipt, ShoppingBag, Store, Tags, Truck, Users, Warehouse, X,
 } from "lucide-react";
 import { useAuth } from "@/components/providers/AuthProvider";
 import { NotificationBell } from "@/components/ui/NotificationBell";
@@ -15,6 +15,7 @@ const NAV = [
   { href: "/admin", label: "Dashboard", icon: LayoutDashboard },
   { href: "/admin/orders", label: "Orders", icon: ShoppingBag },
   { href: "/admin/tracking", label: "Live Tracking", icon: MapPinned },
+  { href: "/admin/dispatch", label: "Dispatch location", icon: Warehouse },
   { href: "/admin/products", label: "Products", icon: Package },
   { href: "/admin/categories", label: "Categories", icon: Tags },
   { href: "/admin/inventory", label: "Inventory", icon: Boxes },

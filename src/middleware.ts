@@ -1,15 +1,12 @@
 import { createServerClient, type CookieOptions } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 
-const PROTECTED = ["/admin", "/delivery", "/checkout", "/orders", "/account"];
-
 export async function middleware(request: NextRequest) {
-  let response = NextResponse.next({ request });
-
   if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY) {
-    return response;
+    return NextResponse.next();
   }
 
+  let response = NextResponse.next({ request });
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
@@ -27,20 +24,31 @@ export async function middleware(request: NextRequest) {
     }
   );
 
+  // Read the session from the cookie. getUser() would call the auth server on every navigation.
   const {
-    data: { user },
-  } = await supabase.auth.getUser();
+    data: { session },
+  } = await supabase.auth.getSession();
 
-  const path = request.nextUrl.pathname;
-  if (!user && PROTECTED.some((p) => path === p || path.startsWith(p + "/"))) {
+  if (!session?.user) {
     const url = request.nextUrl.clone();
     url.pathname = "/login";
-    url.searchParams.set("next", path);
+    url.searchParams.set("next", request.nextUrl.pathname);
     return NextResponse.redirect(url);
   }
   return response;
 }
 
 export const config = {
-  matcher: ["/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)"],
+  matcher: [
+    "/admin",
+    "/admin/:path*",
+    "/delivery",
+    "/delivery/:path*",
+    "/checkout",
+    "/checkout/:path*",
+    "/orders",
+    "/orders/:path*",
+    "/account",
+    "/account/:path*",
+  ],
 };

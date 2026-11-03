@@ -26,32 +26,48 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [profile, setProfile] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(true);
 
-  const load = useCallback(
-    async (u: User | null) => {
+  const loadProfile = useCallback(
+    (u: User | null) => {
       setUser(u);
-      if (u) {
-        const { data } = await supabase.from("profiles").select("*").eq("id", u.id).single();
-        setProfile((data as Profile) ?? null);
-      } else {
+      if (!u) {
         setProfile(null);
+        setLoading(false);
+        return;
       }
-      setLoading(false);
+      const userId = u.id;
+      supabase
+        .from("profiles")
+        .select("id,email,full_name,phone,role,is_active,is_online,last_lat,last_lng,last_accuracy,last_heading,last_speed,last_location_at,created_at")
+        .eq("id", userId)
+        .single()
+        .then(({ data }) => {
+          setProfile((data as Profile) ?? null);
+          setLoading(false);
+        });
     },
     [supabase]
   );
 
   useEffect(() => {
-    supabase.auth.getUser().then(({ data }) => load(data.user));
-    const { data: sub } = supabase.auth.onAuthStateChange((_e, session) => {
-      load(session?.user ?? null);
+    let active = true;
+    // One local cookie read. getUser() would wait on the auth server before every page.
+    supabase.auth.getSession().then(({ data }) => {
+      if (active) loadProfile(data.session?.user ?? null);
     });
-    return () => sub.subscription.unsubscribe();
-  }, [supabase, load]);
+    const { data: sub } = supabase.auth.onAuthStateChange((event, session) => {
+      if (!active || event === "TOKEN_REFRESHED" || event === "INITIAL_SESSION") return;
+      loadProfile(session?.user ?? null);
+    });
+    return () => {
+      active = false;
+      sub.subscription.unsubscribe();
+    };
+  }, [supabase, loadProfile]);
 
   const refresh = useCallback(async () => {
-    const { data } = await supabase.auth.getUser();
-    await load(data.user);
-  }, [supabase, load]);
+    const { data } = await supabase.auth.getSession();
+    loadProfile(data.session?.user ?? null);
+  }, [supabase, loadProfile]);
 
   const signOut = useCallback(async () => {
     await supabase.auth.signOut();

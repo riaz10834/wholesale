@@ -2,12 +2,13 @@
 import { Suspense, useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useParams, useSearchParams } from "next/navigation";
-import { ArrowLeft, CheckCircle2, Loader2, MapPin, Phone, Radio, Truck } from "lucide-react";
+import { ArrowLeft, CheckCircle2, Loader2, MapPin, Phone, Radio, Truck, Warehouse } from "lucide-react";
 import { supabaseBrowser } from "@/lib/supabase/client";
 import { useToast } from "@/components/providers/ToastProvider";
 import { StatusBadge } from "@/components/ui/StatusBadge";
 import { OrderTimeline } from "@/components/ui/OrderTimeline";
 import { RouteMap } from "@/components/maps/RouteMap";
+import { useDispatchPoint } from "@/components/maps/useDispatchPoint";
 import type { Order, OrderStatus, Profile } from "@/lib/types";
 import { errMsg, fmtDate, isLive, money, placeAddress, timeAgo, variantLabel } from "@/lib/utils";
 
@@ -32,6 +33,7 @@ function OrderDetail() {
   const [courierId, setCourierId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [cancelling, setCancelling] = useState(false);
+  const { point: dispatch } = useDispatchPoint();
 
   const load = useCallback(async () => {
     const [{ data: o }, { data: h }] = await Promise.all([
@@ -89,6 +91,7 @@ function OrderDetail() {
   }, [tracking, courierId, id, supabase]);
 
   const destination = useMemo(() => (order ? { lat: order.lat, lng: order.lng } : null), [order]);
+  const origin = useMemo(() => (dispatch ? { lat: dispatch.lat, lng: dispatch.lng } : null), [dispatch]);
   const courierPos = useMemo(
     () => (courier?.last_lat != null && courier?.last_lng != null ? { lat: courier.last_lat, lng: courier.last_lng } : null),
     [courier?.last_lat, courier?.last_lng]
@@ -132,25 +135,44 @@ function OrderDetail() {
 
       <div className="mt-6 grid gap-6 lg:grid-cols-3">
         <div className="space-y-6 lg:col-span-2">
-          {tracking && destination && (
+          {(tracking || origin) && destination && (
             <section className="card p-5">
               <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
                 <div className="flex items-center gap-3">
-                  <span className="flex h-10 w-10 items-center justify-center rounded-full bg-brand-600 text-white"><Truck className="h-5 w-5" /></span>
+                  <span className={`flex h-10 w-10 items-center justify-center rounded-full text-white ${tracking ? "bg-brand-600" : "bg-emerald-600"}`}>
+                    {tracking ? <Truck className="h-5 w-5" /> : <Warehouse className="h-5 w-5" />}
+                  </span>
                   <div>
-                    <p className="font-semibold">{courier?.full_name || "Your delivery rider"} is on the way</p>
-                    <p className="flex items-center gap-1 text-xs text-slate-500">
-                      <Radio className={`h-3 w-3 ${live ? "text-emerald-500" : "text-slate-400"}`} />
-                      {live ? "Live" : "Offline"} · updated {timeAgo(courier?.last_location_at)}
+                    <p className="font-semibold">
+                      {tracking
+                        ? `${courier?.full_name || "Your delivery rider"} is on the way`
+                        : `Your order is coming from ${dispatch?.name || "our warehouse"}`}
                     </p>
+                    {tracking ? (
+                      <p className="flex items-center gap-1 text-xs text-slate-500">
+                        <Radio className={`h-3 w-3 ${live ? "text-emerald-500" : "text-slate-400"}`} />
+                        {live ? "Live" : "Offline"} · updated {timeAgo(courier?.last_location_at)}
+                        {dispatch ? ` · from ${dispatch.name}` : ""}
+                      </p>
+                    ) : (
+                      <p className="text-xs text-slate-500">{dispatch?.address || "Dispatch location"}</p>
+                    )}
                   </div>
                 </div>
-                {courier?.phone && (
+                {tracking && courier?.phone && (
                   <a href={`tel:${courier.phone}`} className="btn-secondary btn-sm"><Phone className="h-3.5 w-3.5" /> Call rider</a>
                 )}
               </div>
-              <RouteMap destination={destination} courier={courierPos} courierOnline={live} />
-              {!courierPos && <p className="mt-2 text-xs text-slate-500">Waiting for the rider&apos;s GPS signal…</p>}
+              <RouteMap
+                destination={destination}
+                origin={origin}
+                originLabel={dispatch?.name || "Warehouse"}
+                courier={courierPos}
+                courierOnline={live}
+                destinationLabel="Your shop"
+                showRoute
+              />
+              {tracking && !courierPos && <p className="mt-2 text-xs text-slate-500">Waiting for the rider&apos;s GPS signal. The green pin is where the order left from.</p>}
             </section>
           )}
 
@@ -194,6 +216,9 @@ function OrderDetail() {
             <p className="font-medium">{order.customer_name}{order.shop_name ? ` · ${order.shop_name}` : ""}</p>
             <p className="text-slate-600">{order.customer_phone}</p>
             <p className="flex gap-1 text-slate-600"><MapPin className="mt-0.5 h-4 w-4 shrink-0" /> {placeAddress(order.address)}</p>
+            {dispatch && (
+              <p className="flex gap-1 text-slate-600"><Warehouse className="mt-0.5 h-4 w-4 shrink-0 text-emerald-600" /> Coming from {dispatch.name}{dispatch.address ? ` · ${dispatch.address}` : ""}</p>
+            )}
             <p className="pt-2 text-slate-500">Payment: {order.payment_method === "cod" ? "Cash on delivery" : order.payment_method.replace("_", " ")}</p>
           </section>
         </div>

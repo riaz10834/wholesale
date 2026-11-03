@@ -1,11 +1,11 @@
 import Link from "next/link";
-import { supabaseServer } from "@/lib/supabase/server";
+import { supabasePublic } from "@/lib/supabase/server";
 import { ProductCard } from "@/components/store/ProductCard";
-import { PRODUCT_CARD_SELECT } from "@/lib/queries";
+import { PRODUCT_LIST_SELECT } from "@/lib/queries";
 import type { Category, Product } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
-export const revalidate = 0;
+export const revalidate = 30;
 export const metadata = { title: "Catalog" };
 
 const SORTS = {
@@ -20,17 +20,17 @@ export default async function ProductsPage({
 }: {
   searchParams: { q?: string; category?: string; sort?: string; page?: string };
 }) {
-  const supabase = supabaseServer();
+  const supabase = supabasePublic();
   const q = (searchParams.q || "").trim().slice(0, 80);
   const sortKey = (searchParams.sort as keyof typeof SORTS) in SORTS ? (searchParams.sort as keyof typeof SORTS) : "new";
   const page = Math.max(1, Number(searchParams.page) || 1);
   const perPage = 24;
 
-  const { data: cats } = await supabase.from("categories").select("*").eq("is_active", true).order("sort_order");
+  const { data: cats } = await supabase.from("categories").select("id,name,slug,image_url").eq("is_active", true).order("sort_order");
   const categories = (cats as Category[]) || [];
   const active = categories.find((c) => c.slug === searchParams.category);
 
-  let query = supabase.from("products").select(PRODUCT_CARD_SELECT, { count: "exact" }).eq("is_active", true);
+  let query = supabase.from("products").select(PRODUCT_LIST_SELECT, { count: "exact" }).eq("is_active", true);
   if (active) query = query.eq("category_id", active.id);
   if (q) query = query.or(`name.ilike.%${q.replace(/[%,()]/g, "")}%,description.ilike.%${q.replace(/[%,()]/g, "")}%`);
   const s = SORTS[sortKey];

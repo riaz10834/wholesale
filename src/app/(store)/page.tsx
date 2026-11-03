@@ -1,19 +1,19 @@
 import Link from "next/link";
 import { ArrowRight, BadgePercent, MapPinned, PackageCheck, ShieldCheck, Truck } from "lucide-react";
-import { supabaseServer } from "@/lib/supabase/server";
+import { supabasePublic } from "@/lib/supabase/server";
 import { ProductCard } from "@/components/store/ProductCard";
-import { PRODUCT_CARD_SELECT } from "@/lib/queries";
+import { PRODUCT_LIST_SELECT } from "@/lib/queries";
 import type { Category, Product } from "@/lib/types";
 import { STORE_NAME } from "@/lib/utils";
 
-export const revalidate = 0;
+export const revalidate = 60;
 
 export default async function Home() {
-  const supabase = supabaseServer();
+  const supabase = supabasePublic();
   const [{ data: cats }, { data: featured }, { data: latest }] = await Promise.all([
-    supabase.from("categories").select("*").eq("is_active", true).order("sort_order").limit(12),
-    supabase.from("products").select(PRODUCT_CARD_SELECT).eq("is_active", true).eq("is_featured", true).limit(8),
-    supabase.from("products").select(PRODUCT_CARD_SELECT).eq("is_active", true).order("created_at", { ascending: false }).limit(8),
+    supabase.from("categories").select("id,name,slug,image_url").eq("is_active", true).order("sort_order").limit(12),
+    supabase.from("products").select(PRODUCT_LIST_SELECT).eq("is_active", true).eq("is_featured", true).limit(8),
+    supabase.from("products").select(PRODUCT_LIST_SELECT).eq("is_active", true).order("created_at", { ascending: false }).limit(8),
   ]);
   const categories = (cats as Category[]) || [];
   const featuredProducts = (featured as unknown as Product[]) || [];

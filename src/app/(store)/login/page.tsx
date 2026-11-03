@@ -34,7 +34,6 @@ function LoginForm() {
     const safeNext = next && next.startsWith("/") && !next.startsWith("//") ? next : null;
     const dest = safeNext || (profile?.role === "admin" ? "/admin" : profile?.role === "delivery" ? "/delivery" : "/");
     router.replace(dest);
-    router.refresh();
   }
 
   return (

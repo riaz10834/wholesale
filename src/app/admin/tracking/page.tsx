@@ -6,7 +6,8 @@ import { Crosshair, Phone, Radio, RefreshCw, Route } from "lucide-react";
 import { supabaseBrowser } from "@/lib/supabase/client";
 import { DEFAULT_CENTER, MAP_STYLE, useMaps } from "@/components/maps/useMaps";
 import { MapFallback } from "@/components/maps/MapFallback";
-import { courierIcon, destinationIcon } from "@/components/maps/markers";
+import { courierIcon, destinationIcon, originIcon } from "@/components/maps/markers";
+import { useDispatchPoint } from "@/components/maps/useDispatchPoint";
 import { StatusBadge } from "@/components/ui/StatusBadge";
 import type { DeliveryStatus, Profile } from "@/lib/types";
 import { cn, isLive, placeAddress, timeAgo } from "@/lib/utils";
@@ -33,6 +34,8 @@ export default function LiveTracking() {
   const [, setTick] = useState(0);
   const mapRef = useRef<google.maps.Map | null>(null);
   const fitted = useRef(false);
+  const sawDispatch = useRef(false);
+  const { point: dispatch } = useDispatchPoint();
 
   const loadRiders = useCallback(async () => {
     const { data } = await supabase
@@ -131,18 +134,26 @@ export default function LiveTracking() {
     );
   }, [isLoaded, selRider?.id, selRider?.last_lat, selRider?.last_lng, selDelivery?.id, selDelivery?.order]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // fit all riders once
+  useEffect(() => {
+    if (dispatch && !sawDispatch.current) {
+      sawDispatch.current = true;
+      fitted.current = false;
+    }
+  }, [dispatch]);
+
+  // fit all riders once, then again when the warehouse pin arrives
   useEffect(() => {
     if (!isLoaded || !mapRef.current || fitted.current) return;
     const pts = riders.filter((r) => r.last_lat != null).map((r) => ({ lat: r.last_lat!, lng: r.last_lng! }));
     deliveries.forEach((d) => d.order && pts.push({ lat: d.order.lat, lng: d.order.lng }));
+    if (dispatch) pts.push({ lat: dispatch.lat, lng: dispatch.lng });
     if (pts.length === 0) return;
     const b = new google.maps.LatLngBounds();
     pts.forEach((p) => b.extend(p));
     mapRef.current.fitBounds(b, 80);
     if (pts.length === 1) mapRef.current.setZoom(15);
     fitted.current = true;
-  }, [isLoaded, riders, deliveries]);
+  }, [isLoaded, riders, deliveries, dispatch]);
 
   function focus(r: Rider) {
     setSelected(r.id);
@@ -167,6 +178,9 @@ export default function LiveTracking() {
             <button onClick={() => { loadRiders(); loadDeliveries(); }} className="btn-ghost btn-sm"><RefreshCw className="h-3.5 w-3.5" /></button>
           </div>
           <p className="text-xs text-slate-500">{onlineCount} online · {riders.length} riders · {deliveries.length} active deliveries</p>
+          <p className="mt-1 text-xs text-slate-500">
+            {dispatch ? <>Orders leave from <span className="font-semibold text-slate-700">{dispatch.name}</span></> : <Link href="/admin/dispatch" className="font-medium text-brand-600">Set where orders come from</Link>}
+          </p>
           <div className="mt-3 flex gap-1.5">
             {(["all", "online", "busy"] as const).map((f) => (
               <button key={f} onClick={() => setFilter(f)} className={cn("rounded-lg px-3 py-1 text-xs font-semibold capitalize", filter === f ? "bg-slate-900 text-white" : "bg-slate-100 text-slate-600")}>
@@ -218,6 +232,20 @@ export default function LiveTracking() {
             onClick={() => setInfo(null)}
             options={{ styles: MAP_STYLE, streetViewControl: false, mapTypeControl: false, fullscreenControl: true }}
           >
+            {dispatch && (
+              <MarkerF position={{ lat: dispatch.lat, lng: dispatch.lng }} icon={originIcon()} title={dispatch.name} zIndex={4} onClick={() => setInfo("warehouse")}>
+                {info === "warehouse" && (
+                  <InfoWindowF onCloseClick={() => setInfo(null)}>
+                    <div className="min-w-40 text-sm">
+                      <p className="font-bold">{dispatch.name}</p>
+                      <p className="text-slate-500">{placeAddress(dispatch.address)}</p>
+                      <p className="mt-1 text-slate-500">Orders are dispatched from here.</p>
+                    </div>
+                  </InfoWindowF>
+                )}
+              </MarkerF>
+            )}
+
             {deliveries.map((d) =>
               d.order ? (
                 <MarkerF

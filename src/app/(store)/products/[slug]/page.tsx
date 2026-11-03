@@ -1,22 +1,22 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ChevronRight } from "lucide-react";
-import { supabaseServer } from "@/lib/supabase/server";
+import { supabasePublic } from "@/lib/supabase/server";
 import { PRODUCT_CARD_SELECT } from "@/lib/queries";
 import type { Product } from "@/lib/types";
 import { ProductDetail } from "./ProductDetail";
 import { ProductCard } from "@/components/store/ProductCard";
 
-export const revalidate = 0;
+export const revalidate = 60;
 
 export async function generateMetadata({ params }: { params: { slug: string } }) {
-  const supabase = supabaseServer();
+  const supabase = supabasePublic();
   const { data } = await supabase.from("products").select("name,description").eq("slug", params.slug).maybeSingle();
   return { title: data?.name || "Product", description: data?.description?.slice(0, 160) };
 }
 
 export default async function ProductPage({ params }: { params: { slug: string } }) {
-  const supabase = supabaseServer();
+  const supabase = supabasePublic();
   const { data } = await supabase.from("products").select(PRODUCT_CARD_SELECT).eq("slug", params.slug).eq("is_active", true).maybeSingle();
   if (!data) notFound();
   const product = data as unknown as Product;

@@ -39,7 +39,6 @@ function SignupForm() {
     toast.success("Welcome! Your account is ready.");
     const next = params.get("next");
     router.replace(next && next.startsWith("/") && !next.startsWith("//") ? next : "/products");
-    router.refresh();
   }
 
   return (

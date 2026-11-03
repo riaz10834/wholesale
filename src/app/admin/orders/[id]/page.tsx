@@ -2,12 +2,13 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
-import { ArrowLeft, Loader2, MapPin, Navigation, Phone, Trash2, Truck } from "lucide-react";
+import { ArrowLeft, Loader2, MapPin, Navigation, Phone, Trash2, Truck, Warehouse } from "lucide-react";
 import { supabaseBrowser } from "@/lib/supabase/client";
 import { useToast } from "@/components/providers/ToastProvider";
 import { StatusBadge } from "@/components/ui/StatusBadge";
 import { OrderTimeline } from "@/components/ui/OrderTimeline";
 import { RouteMap } from "@/components/maps/RouteMap";
+import { useDispatchPoint } from "@/components/maps/useDispatchPoint";
 import type { Delivery, Order, OrderStatus, Payment, Profile } from "@/lib/types";
 import { useMaps } from "@/components/maps/useMaps";
 import { ALL_ORDER_STATUSES, ORDER_FLOW, STATUS_LABEL, errMsg, fmtDate, isLive, looksLikeCoords, mapsNavUrl, money, placeAddress, timeAgo, variantLabel } from "@/lib/utils";
@@ -27,6 +28,7 @@ export default function AdminOrderDetail() {
   const [rider, setRider] = useState("");
   const [busy, setBusy] = useState<string | null>(null);
   const [pay, setPay] = useState({ amount: "", method: "cash", reference: "" });
+  const { point: dispatch, ready: dispatchReady } = useDispatchPoint();
 
   const load = useCallback(async () => {
     const [o, d, h, p] = await Promise.all([
@@ -94,6 +96,7 @@ export default function AdminOrderDetail() {
   }, [order?.id, order?.address, mapsReady, supabase]);
 
   const destination = useMemo(() => (order ? { lat: order.lat, lng: order.lng } : null), [order]);
+  const origin = useMemo(() => (dispatch ? { lat: dispatch.lat, lng: dispatch.lng } : null), [dispatch]);
   const dp = delivery?.delivery_person;
   const riderPos = useMemo(() => (dp?.last_lat != null && dp?.last_lng != null ? { lat: dp.last_lat, lng: dp.last_lng } : null), [dp?.last_lat, dp?.last_lng]);
 
@@ -220,8 +223,29 @@ export default function AdminOrderDetail() {
               </div>
             )}
             {destination && (
-              <div className="mt-4">
-                <RouteMap destination={destination} courier={riderPos} courierOnline={live} height={320} showRoute={order.status === "out_for_delivery"} />
+              <div className="mt-4 space-y-2">
+                {dispatch ? (
+                  <p className="flex gap-1 text-sm text-slate-600">
+                    <Warehouse className="mt-0.5 h-4 w-4 shrink-0 text-emerald-600" />
+                    Coming from <b className="text-slate-800">{dispatch.name}</b>
+                    {dispatch.address ? ` · ${placeAddress(dispatch.address)}` : ""}
+                  </p>
+                ) : dispatchReady ? (
+                  <p className="text-sm text-slate-500">
+                    Dispatch location is not set, so this map cannot show where the order leaves from.{" "}
+                    <Link href="/admin/dispatch" className="font-medium text-brand-600">Set it</Link>
+                  </p>
+                ) : null}
+                <RouteMap
+                  destination={destination}
+                  origin={origin}
+                  originLabel={dispatch?.name || "Warehouse"}
+                  courier={riderPos}
+                  courierOnline={live}
+                  height={320}
+                  showRoute
+                  destinationLabel="Customer"
+                />
               </div>
             )}
           </section>
