@@ -2,6 +2,7 @@ import Link from "next/link";
 import { ArrowRight, BadgePercent, MapPinned, PackageCheck, ShieldCheck, Truck } from "lucide-react";
 import { supabasePublic } from "@/lib/supabase/server";
 import { ProductCard } from "@/components/store/ProductCard";
+import { colorListings } from "@/lib/colorImages";
 import { PRODUCT_LIST_SELECT } from "@/lib/queries";
 import type { Category, Product } from "@/lib/types";
 import { STORE_NAME } from "@/lib/utils";
@@ -97,7 +98,7 @@ export default async function Home() {
         <section className="container-x mt-14">
           <h2 className="text-2xl font-bold tracking-tight">Featured deals</h2>
           <div className="mt-6 grid grid-cols-2 gap-4 md:grid-cols-3 lg:grid-cols-4">
-            {featuredProducts.map((p) => <ProductCard key={p.id} p={p} />)}
+            {colorListings(featuredProducts).map((item) => <ProductCard key={item.key} p={item.product} color={item.color} />)}
           </div>
         </section>
       )}
@@ -113,7 +114,7 @@ export default async function Home() {
           </div>
         ) : (
           <div className="mt-6 grid grid-cols-2 gap-4 md:grid-cols-3 lg:grid-cols-4">
-            {latestProducts.map((p) => <ProductCard key={p.id} p={p} />)}
+            {colorListings(latestProducts).map((item) => <ProductCard key={item.key} p={item.product} color={item.color} />)}
           </div>
         )}
       </section>

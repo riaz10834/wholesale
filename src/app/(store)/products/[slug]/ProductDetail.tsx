@@ -1,18 +1,25 @@
 "use client";
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Check, ImageOff, Minus, Plus, ShoppingCart, Truck, Layers, Zap } from "lucide-react";
+import { ImageOff, Minus, Plus, ShoppingCart, Truck, Layers, Zap } from "lucide-react";
 import type { Product } from "@/lib/types";
 import { colorShots } from "@/lib/colorImages";
 import { cn, money } from "@/lib/utils";
 import { useCart } from "@/components/providers/CartProvider";
 import { useToast } from "@/components/providers/ToastProvider";
 
-export function ProductDetail({ product }: { product: Product }) {
+export function ProductDetail({ product, onlyColor }: { product: Product; onlyColor?: string | null }) {
   const router = useRouter();
   const cart = useCart();
   const toast = useToast();
-  const variants = useMemo(() => (product.product_variants || []).filter((v) => v.is_active), [product]);
+  const allVariants = useMemo(() => (product.product_variants || []).filter((v) => v.is_active), [product]);
+  const color = useMemo(() => {
+    const names = Array.from(new Set(allVariants.map((v) => v.color).filter(Boolean))) as string[];
+    if (!names.length) return null;
+    const want = (onlyColor || "").trim().toLowerCase();
+    return names.find((name) => name.toLowerCase() === want) || names[0];
+  }, [allVariants, onlyColor]);
+  const variants = useMemo(() => allVariants.filter((v) => !color || v.color === color), [allVariants, color]);
   const sizes = useMemo(() => Array.from(new Set(variants.map((v) => v.size).filter(Boolean))) as string[], [variants]);
   const colors = useMemo(() => {
     const m = new Map<string, string | null>();
@@ -22,7 +29,6 @@ export function ProductDetail({ product }: { product: Product }) {
 
   const [broken, setBroken] = useState<string[]>([]);
   const [size, setSize] = useState<string | null>(sizes[0] ?? null);
-  const [color, setColor] = useState<string | null>(colors[0]?.[0] ?? null);
   const gallery = useMemo(() => colorShots(product, colors), [product, colors]);
   const active = Math.max(0, gallery.findIndex((shot) => shot.color === color));
   const shot = gallery[active];
@@ -83,36 +89,11 @@ export function ProductDetail({ product }: { product: Product }) {
             <div className="flex h-full items-center justify-center text-slate-300"><ImageOff className="h-14 w-14" /></div>
           )}
         </div>
-        {gallery.length > 1 && (
-          <div className="no-scrollbar mt-3 flex gap-3 overflow-x-auto">
-            {gallery.map((shot, i) => {
-              const src = shot.src && !broken.includes(shot.src) ? shot.src : "";
-              const selected = i === active;
-              return (
-                <button
-                  key={shot.color || i}
-                  onClick={() => shot.color && setColor(shot.color)}
-                  className={cn("w-20 shrink-0 overflow-hidden rounded-xl border-2 bg-white", selected ? "border-brand-600" : "border-transparent")}
-                >
-                  <span className="block h-16 w-full">
-                    {src ? (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img src={src} alt={shot.color || ""} className="h-full w-full object-cover" />
-                    ) : (
-                      <span className="flex h-full items-center justify-center text-slate-300"><ImageOff className="h-5 w-5" /></span>
-                    )}
-                  </span>
-                  {shot.color && <span className="block truncate px-1 py-1 text-[11px] font-semibold text-slate-700">{shot.color}</span>}
-                </button>
-              );
-            })}
-          </div>
-        )}
       </div>
 
       <div>
         {product.category && <p className="text-xs font-semibold uppercase tracking-wider text-brand-600">{product.category.name}</p>}
-        <h1 className="mt-1 text-2xl font-extrabold tracking-tight sm:text-3xl">{product.name}</h1>
+        <h1 className="mt-1 text-2xl font-extrabold tracking-tight sm:text-3xl">{color ? `${product.name} — ${color}` : product.name}</h1>
 
         <div className="mt-4 flex flex-wrap items-end gap-3">
           <span className="text-3xl font-extrabold">{money(price)}</span>
@@ -144,30 +125,6 @@ export function ProductDetail({ product }: { product: Product }) {
                   )}
                 >
                   {s}
-                </button>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {colors.length > 0 && (
-          <div className="mt-5">
-            <p className="label">Colour: <span className="font-normal text-slate-500">{color}</span></p>
-            <div className="flex flex-wrap gap-2">
-              {colors.map(([c, hex]) => (
-                <button
-                  key={c}
-                  onClick={() => setColor(c)}
-                  title={c}
-                  className={cn(
-                    "flex items-center gap-2 rounded-xl border px-3 py-2 text-sm font-medium transition",
-                    color === c ? "border-brand-600 ring-2 ring-brand-600/20" : "border-slate-200 bg-white hover:border-slate-300",
-                    !available(sizes.length ? size : null, c) && "opacity-40"
-                  )}
-                >
-                  {hex && <span className="h-4 w-4 rounded-full ring-1 ring-slate-300" style={{ background: hex }} />}
-                  {c}
-                  {color === c && <Check className="h-3.5 w-3.5 text-brand-600" />}
                 </button>
               ))}
             </div>

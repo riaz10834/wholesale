@@ -41,6 +41,28 @@ export function colorShots(
   }));
 }
 
+export function productColors(product: {
+  product_variants?: { is_active: boolean; color: string | null; color_hex: string | null }[] | null;
+}) {
+  const seen = new Map<string, string | null>();
+  for (const variant of product.product_variants || []) {
+    if (variant.is_active && variant.color && !seen.has(variant.color)) seen.set(variant.color, variant.color_hex);
+  }
+  return Array.from(seen.entries());
+}
+
+export function colorListings<T extends { id: string; product_variants?: { is_active: boolean; color: string | null; color_hex: string | null }[] | null }>(
+  products: T[]
+) {
+  const rows: { product: T; color: string | null; hex: string | null; key: string }[] = [];
+  for (const product of products) {
+    const colors = productColors(product);
+    if (!colors.length) rows.push({ product, color: null, hex: null, key: product.id });
+    else for (const [color, hex] of colors) rows.push({ product, color, hex, key: `${product.id}:${color}` });
+  }
+  return rows;
+}
+
 export function coverSrc(product: { slug: string; images: string[] }) {
   const stored = usableImages(product.images);
   const fills = COLOR_PHOTOS[product.slug];

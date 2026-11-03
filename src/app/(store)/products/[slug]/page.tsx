@@ -6,6 +6,7 @@ import { PRODUCT_CARD_SELECT } from "@/lib/queries";
 import type { Product } from "@/lib/types";
 import { ProductDetail } from "./ProductDetail";
 import { ProductCard } from "@/components/store/ProductCard";
+import { colorListings } from "@/lib/colorImages";
 
 export const dynamic = "force-dynamic";
 
@@ -15,7 +16,7 @@ export async function generateMetadata({ params }: { params: { slug: string } })
   return { title: data?.name || "Product", description: data?.description?.slice(0, 160) };
 }
 
-export default async function ProductPage({ params }: { params: { slug: string } }) {
+export default async function ProductPage({ params, searchParams }: { params: { slug: string }; searchParams: { color?: string } }) {
   const supabase = supabasePublic();
   const { data } = await supabase.from("products").select(PRODUCT_CARD_SELECT).eq("slug", params.slug).eq("is_active", true).maybeSingle();
   if (!data) notFound();
@@ -44,12 +45,14 @@ export default async function ProductPage({ params }: { params: { slug: string }
           </>
         )}
       </nav>
-      <ProductDetail product={product} />
+      <ProductDetail key={`${product.id}:${searchParams.color || ""}`} product={product} onlyColor={searchParams.color} />
       {related && related.length > 0 && (
         <section className="mt-16">
           <h2 className="text-xl font-bold">More in {product.category?.name}</h2>
           <div className="mt-5 grid grid-cols-2 gap-4 md:grid-cols-4">
-            {(related as unknown as Product[]).map((p) => <ProductCard key={p.id} p={p} />)}
+            {colorListings(related as unknown as Product[])
+              .filter((item) => !(item.product.id === product.id && item.color === searchParams.color))
+              .map((item) => <ProductCard key={item.key} p={item.product} color={item.color} />)}
           </div>
         </section>
       )}

@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { supabasePublic } from "@/lib/supabase/server";
 import { ProductCard } from "@/components/store/ProductCard";
+import { colorListings } from "@/lib/colorImages";
 import { PRODUCT_LIST_SELECT } from "@/lib/queries";
 import type { Category, Product } from "@/lib/types";
 import { cn } from "@/lib/utils";
@@ -36,6 +37,7 @@ export default async function ProductsPage({
   const s = SORTS[sortKey];
   const { data, count } = await query.order(s.col, { ascending: s.asc }).range((page - 1) * perPage, page * perPage - 1);
   const products = (data as unknown as Product[]) || [];
+  const listings = colorListings(products);
   const pages = Math.ceil((count || 0) / perPage);
 
   const qs = (over: Record<string, string | undefined>) => {
@@ -51,7 +53,7 @@ export default async function ProductsPage({
       <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
         <div>
           <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">{active ? active.name : q ? `Results for “${q}”` : "All products"}</h1>
-          <p className="mt-1 text-sm text-slate-500">{count || 0} products</p>
+          <p className="mt-1 text-sm text-slate-500">{listings.length} products</p>
         </div>
         <form className="flex gap-2" action="/products">
           {q && <input type="hidden" name="q" value={q} />}
@@ -87,7 +89,7 @@ export default async function ProductsPage({
         </div>
       ) : (
         <div className="mt-6 grid grid-cols-2 gap-4 md:grid-cols-3 lg:grid-cols-4">
-          {products.map((p) => <ProductCard key={p.id} p={p} />)}
+          {listings.map((item) => <ProductCard key={item.key} p={item.product} color={item.color} />)}
         </div>
       )}
 
