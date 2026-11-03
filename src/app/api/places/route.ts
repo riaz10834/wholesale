@@ -1,7 +1,17 @@
 import { NextRequest, NextResponse } from "next/server";
 
 const BIAS = "33.6844,73.0479";
-type PlacePrediction = { description: string; place_id: string; lat?: number; lng?: number };
+type PlacePrediction = { description: string; place_id: string; lat?: number; lng?: number; source?: string };
+
+function unique(predictions: PlacePrediction[]) {
+  const seen = new Set<string>();
+  return predictions.filter((place) => {
+    const key = `${place.lat?.toFixed(4)},${place.lng?.toFixed(4)}:${place.description.toLowerCase()}`;
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+}
 
 async function openStreetMapSearch(query: string): Promise<PlacePrediction[]> {
   const url = new URL("https://nominatim.openstreetmap.org/search");
@@ -20,7 +30,40 @@ async function openStreetMapSearch(query: string): Promise<PlacePrediction[]> {
     place_id: `osm:${row.lat},${row.lon}`,
     lat: Number(row.lat),
     lng: Number(row.lon),
+    source: "osm",
   }));
+}
+
+async function photonSearch(query: string): Promise<PlacePrediction[]> {
+  const url = new URL("https://photon.komoot.io/api/");
+  url.searchParams.set("q", `${query}, Pakistan`);
+  url.searchParams.set("limit", "8");
+  url.searchParams.set("lang", "en");
+  const response = await fetch(url, {
+    headers: { "User-Agent": "WholesaleHub delivery address search" },
+    next: { revalidate: 86400 },
+  });
+  if (!response.ok) return [];
+  const data = (await response.json()) as {
+    features?: { geometry?: { coordinates?: [number, number] }; properties?: Record<string, string | undefined> }[];
+  };
+  const places: PlacePrediction[] = [];
+  for (const feature of data.features || []) {
+      const [lng, lat] = feature.geometry?.coordinates || [];
+      const p = feature.properties || {};
+      const description = [p.name, p.street, p.district, p.city, p.state, p.country]
+        .filter((part, index, parts) => !!part && parts.indexOf(part) === index)
+        .join(", ");
+      if (!Number.isFinite(lat) || !Number.isFinite(lng) || !description) continue;
+      places.push({
+        description,
+        place_id: `photon:${lat},${lng}`,
+        lat: lat!,
+        lng: lng!,
+        source: "photon",
+      });
+  }
+  return places;
 }
 
 export async function GET(req: NextRequest) {
@@ -51,7 +94,7 @@ export async function GET(req: NextRequest) {
   const q = req.nextUrl.searchParams.get("q")?.trim() || "";
   if (q.length < 2) return NextResponse.json({ predictions: [] });
 
-  let predictions: PlacePrediction[] = [];
+  let google: PlacePrediction[] = [];
   let error: string | undefined;
   if (key) {
     const url = new URL("https://maps.googleapis.com/maps/api/place/autocomplete/json");
@@ -61,13 +104,15 @@ export async function GET(req: NextRequest) {
     url.searchParams.set("radius", "80000");
     url.searchParams.set("key", key);
     const data = await fetch(url.toString()).then((r) => r.json());
-    predictions = ((data.predictions || []) as { description: string; place_id: string }[])
+    google = ((data.predictions || []) as { description: string; place_id: string }[])
       .slice(0, 6)
-      .map((p) => ({ description: p.description, place_id: p.place_id }));
+      .map((p) => ({ description: p.description, place_id: p.place_id, source: "google" }));
     error = data.error_message;
   }
-  // Google can reject a key due to API billing/restrictions. OpenStreetMap keeps address search usable.
-  if (!predictions.length) predictions = await openStreetMapSearch(q);
+  // Different map databases index different streets and neighbourhoods. Combining them lets
+  // partial text such as "pesha" return Peshawar and places in/around it.
+  const [osm, photon] = await Promise.all([openStreetMapSearch(q), photonSearch(q)]);
+  const predictions = unique([...google, ...photon, ...osm]).slice(0, 10);
   return NextResponse.json({
     predictions,
     error: predictions.length ? undefined : error,

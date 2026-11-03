@@ -43,6 +43,11 @@ function localPredictions(input: string) {
 
 async function predict(input: string, allowClient: boolean): Promise<Prediction[]> {
   const local = localPredictions(input);
+  const apiRequest = fetch(`/api/places?q=${encodeURIComponent(input)}`)
+    .then(async (res) => (await res.json()) as { predictions?: Prediction[] })
+    .then((data) => data.predictions || [])
+    .catch(() => []);
+  let googleResults: Prediction[] = [];
   if (allowClient && window.google?.maps?.places?.AutocompleteService) {
     const found = await new Promise<Prediction[] | null>((resolve) => {
       const svc = new google.maps.places.AutocompleteService();
@@ -66,15 +71,18 @@ async function predict(input: string, allowClient: boolean): Promise<Prediction[
         }
       );
     });
-    if (found?.length) {
-      const ids = new Set(local.map((p) => p.place_id));
-      return [...local, ...found.filter((p) => !ids.has(p.place_id))].slice(0, 6);
-    }
+    googleResults = found || [];
   }
-  const res = await fetch(`/api/places?q=${encodeURIComponent(input)}`);
-  const data = (await res.json()) as { predictions?: Prediction[] };
-  const ids = new Set(local.map((p) => p.place_id));
-  return [...local, ...(data.predictions || []).filter((p) => !ids.has(p.place_id))].slice(0, 6);
+  const online = await apiRequest;
+  const ids = new Set<string>();
+  return [...local, ...googleResults, ...online]
+    .filter((place) => {
+      const key = `${place.lat?.toFixed(4)},${place.lng?.toFixed(4)}:${place.description.toLowerCase()}`;
+      if (ids.has(key)) return false;
+      ids.add(key);
+      return true;
+    })
+    .slice(0, 10);
 }
 
 async function resolvePlace(placeId: string, description: string, allowClient: boolean): Promise<PickedLocation | null> {
