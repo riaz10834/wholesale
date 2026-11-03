@@ -20,7 +20,7 @@ async function openStreetMapSearch(query: string): Promise<PlacePrediction[]> {
   url.searchParams.set("addressdetails", "1");
   url.searchParams.set("limit", "6");
   const response = await fetch(url, {
-    headers: { "User-Agent": "WholesaleHub delivery address search" },
+    headers: { "User-Agent": "Wholesale-Brand delivery address search" },
     next: { revalidate: 86400 },
   });
   if (!response.ok) return [];
@@ -40,7 +40,7 @@ async function photonSearch(query: string): Promise<PlacePrediction[]> {
   url.searchParams.set("limit", "8");
   url.searchParams.set("lang", "en");
   const response = await fetch(url, {
-    headers: { "User-Agent": "WholesaleHub delivery address search" },
+    headers: { "User-Agent": "Wholesale-Brand delivery address search" },
     next: { revalidate: 86400 },
   });
   if (!response.ok) return [];
