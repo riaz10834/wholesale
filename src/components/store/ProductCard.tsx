@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { ImageOff, Layers } from "lucide-react";
 import type { Product } from "@/lib/types";
+import { coverSrc } from "@/lib/colorImages";
 import { money } from "@/lib/utils";
 
 export function ProductCard({ p }: { p: Product }) {
@@ -10,6 +11,7 @@ export function ProductCard({ p }: { p: Product }) {
   const min = prices.length ? Math.min(...prices) : Number(p.wholesale_price);
   const colors = Array.from(new Set(variants.map((v) => v.color_hex).filter(Boolean))) as string[];
   const discount = p.retail_price && p.retail_price > min ? Math.round(((p.retail_price - min) / p.retail_price) * 100) : 0;
+  const cover = coverSrc(p);
 
   return (
     <Link
@@ -17,9 +19,9 @@ export function ProductCard({ p }: { p: Product }) {
       className="group flex flex-col overflow-hidden rounded-2xl border border-slate-200/70 bg-white shadow-card transition hover:-translate-y-0.5 hover:shadow-lift"
     >
       <div className="relative aspect-square overflow-hidden bg-slate-100">
-        {p.images?.[0] ? (
+        {cover ? (
           // eslint-disable-next-line @next/next/no-img-element
-          <img src={p.images[0]} alt={p.name} loading="lazy" className="h-full w-full object-cover transition duration-500 group-hover:scale-105" />
+          <img src={cover} alt={p.name} loading="lazy" className="h-full w-full object-cover transition duration-500 group-hover:scale-105" />
         ) : (
           <div className="flex h-full items-center justify-center text-slate-300">
             <ImageOff className="h-10 w-10" />

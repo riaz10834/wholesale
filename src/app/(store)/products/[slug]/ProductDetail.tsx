@@ -3,6 +3,7 @@ import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Check, ImageOff, Minus, Plus, ShoppingCart, Truck, Layers, Zap } from "lucide-react";
 import type { Product } from "@/lib/types";
+import { colorShots } from "@/lib/colorImages";
 import { cn, money } from "@/lib/utils";
 import { useCart } from "@/components/providers/CartProvider";
 import { useToast } from "@/components/providers/ToastProvider";
@@ -19,9 +20,12 @@ export function ProductDetail({ product }: { product: Product }) {
     return Array.from(m.entries());
   }, [variants]);
 
-  const [img, setImg] = useState(0);
+  const [broken, setBroken] = useState<string[]>([]);
   const [size, setSize] = useState<string | null>(sizes[0] ?? null);
   const [color, setColor] = useState<string | null>(colors[0]?.[0] ?? null);
+  const gallery = useMemo(() => colorShots(product, colors), [product, colors]);
+  const active = Math.max(0, gallery.findIndex((shot) => shot.color === color));
+  const photo = gallery[active]?.src && !broken.includes(gallery[active].src) ? gallery[active].src : "";
   const moq = product.min_order_qty;
   const [qty, setQty] = useState(moq);
 
@@ -49,7 +53,7 @@ export function ProductDetail({ product }: { product: Product }) {
       productId: product.id,
       slug: product.slug,
       name: product.name,
-      image: product.images[0] || null,
+      image: photo || gallery[0]?.src || null,
       size: variant!.size,
       color: variant!.color,
       price,
@@ -66,21 +70,46 @@ export function ProductDetail({ product }: { product: Product }) {
     <div className="mt-4 grid gap-8 lg:grid-cols-2">
       <div>
         <div className="aspect-square overflow-hidden rounded-3xl border border-slate-200 bg-white">
-          {product.images[img] ? (
+          {photo ? (
             // eslint-disable-next-line @next/next/no-img-element
-            <img src={product.images[img]} alt={product.name} className="h-full w-full object-cover" />
+            <img
+              src={photo}
+              alt={color ? `${product.name} — ${color}` : product.name}
+              className="h-full w-full object-cover"
+              onError={() => setBroken((list) => (list.includes(photo) ? list : [...list, photo]))}
+            />
           ) : (
             <div className="flex h-full items-center justify-center text-slate-300"><ImageOff className="h-14 w-14" /></div>
           )}
         </div>
-        {product.images.length > 1 && (
+        {gallery.length > 1 && (
           <div className="no-scrollbar mt-3 flex gap-3 overflow-x-auto">
-            {product.images.map((src, i) => (
-              <button key={src} onClick={() => setImg(i)} className={cn("h-20 w-20 shrink-0 overflow-hidden rounded-xl border-2", i === img ? "border-brand-600" : "border-transparent")}>
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={src} alt="" className="h-full w-full object-cover" />
-              </button>
-            ))}
+            {gallery.map((shot, i) => {
+              const src = shot.src && !broken.includes(shot.src) ? shot.src : "";
+              const selected = i === active;
+              return (
+                <button
+                  key={shot.color || shot.src || i}
+                  onClick={() => shot.color && setColor(shot.color)}
+                  className={cn("w-20 shrink-0 overflow-hidden rounded-xl border-2 bg-white", selected ? "border-brand-600" : "border-transparent")}
+                >
+                  <span className="block h-16 w-full">
+                    {src ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img
+                        src={src}
+                        alt={shot.color || ""}
+                        className="h-full w-full object-cover"
+                        onError={() => setBroken((list) => (list.includes(src) ? list : [...list, src]))}
+                      />
+                    ) : (
+                      <span className="flex h-full items-center justify-center text-slate-300"><ImageOff className="h-5 w-5" /></span>
+                    )}
+                  </span>
+                  {shot.color && <span className="block truncate px-1 py-1 text-[11px] font-semibold text-slate-700">{shot.color}</span>}
+                </button>
+              );
+            })}
           </div>
         )}
       </div>
