@@ -5,7 +5,7 @@ import { PRODUCT_LIST_SELECT } from "@/lib/queries";
 import type { Category, Product } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
-export const revalidate = 30;
+export const dynamic = "force-dynamic";
 export const metadata = { title: "Catalog" };
 
 const SORTS = {

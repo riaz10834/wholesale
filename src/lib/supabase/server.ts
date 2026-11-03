@@ -1,6 +1,18 @@
 import { createServerClient, type CookieOptions } from "@supabase/ssr";
-import { createClient } from "@supabase/supabase-js";
+import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { cookies } from "next/headers";
+
+function emptyPublicClient(): SupabaseClient {
+  const empty = Promise.resolve({ data: null, error: null, count: 0 });
+  const query: unknown = new Proxy(() => query, {
+    get(_target, prop) {
+      if (prop === "then") return empty.then.bind(empty);
+      return query;
+    },
+    apply: () => query,
+  });
+  return { from: () => query } as unknown as SupabaseClient;
+}
 
 export function supabaseServer() {
   const cookieStore = cookies();
@@ -29,13 +41,11 @@ export function supabaseServer() {
   );
 }
 
-/** Anonymous reads for public catalog pages. No cookies, so those pages can be cached. */
+/** Anonymous catalog reads. Missing keys return an empty client so `next build` can finish. */
 export function supabasePublic() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-  if (!url || !key) {
-    throw new Error("NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY are required");
-  }
+  if (!url || !key) return emptyPublicClient();
   return createClient(url, key, {
     auth: { persistSession: false, autoRefreshToken: false },
   });

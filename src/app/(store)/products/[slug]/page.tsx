@@ -7,7 +7,7 @@ import type { Product } from "@/lib/types";
 import { ProductDetail } from "./ProductDetail";
 import { ProductCard } from "@/components/store/ProductCard";
 
-export const revalidate = 60;
+export const dynamic = "force-dynamic";
 
 export async function generateMetadata({ params }: { params: { slug: string } }) {
   const supabase = supabasePublic();
