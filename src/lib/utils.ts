@@ -93,6 +93,15 @@ export function mapsNavUrl(lat: number, lng: number) {
   return `https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}&travelmode=driving`;
 }
 
+export function looksLikeCoords(value: string | null | undefined) {
+  return !!value && /^-?\d{1,3}(\.\d+)?\s*,\s*-?\d{1,3}(\.\d+)?$/.test(value.trim());
+}
+
+export function placeAddress(value: string | null | undefined) {
+  if (!value || looksLikeCoords(value)) return "Address not available";
+  return value;
+}
+
 export function errMsg(e: unknown) {
   if (!e) return "Something went wrong";
   if (typeof e === "string") return e;

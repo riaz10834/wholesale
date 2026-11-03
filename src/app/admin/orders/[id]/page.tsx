@@ -9,7 +9,8 @@ import { StatusBadge } from "@/components/ui/StatusBadge";
 import { OrderTimeline } from "@/components/ui/OrderTimeline";
 import { RouteMap } from "@/components/maps/RouteMap";
 import type { Delivery, Order, OrderStatus, Payment, Profile } from "@/lib/types";
-import { ALL_ORDER_STATUSES, ORDER_FLOW, STATUS_LABEL, errMsg, fmtDate, isLive, mapsNavUrl, money, timeAgo, variantLabel } from "@/lib/utils";
+import { useMaps } from "@/components/maps/useMaps";
+import { ALL_ORDER_STATUSES, ORDER_FLOW, STATUS_LABEL, errMsg, fmtDate, isLive, looksLikeCoords, mapsNavUrl, money, placeAddress, timeAgo, variantLabel } from "@/lib/utils";
 
 type Rider = Pick<Profile, "id" | "full_name" | "phone" | "is_online" | "last_lat" | "last_lng" | "last_location_at">;
 
@@ -17,6 +18,7 @@ export default function AdminOrderDetail() {
   const { id } = useParams<{ id: string }>();
   const supabase = supabaseBrowser();
   const toast = useToast();
+  const { isLoaded: mapsReady } = useMaps();
   const [order, setOrder] = useState<Order | null>(null);
   const [delivery, setDelivery] = useState<(Delivery & { delivery_person: Rider | null }) | null>(null);
   const [history, setHistory] = useState<{ status: OrderStatus; created_at: string }[]>([]);
@@ -73,6 +75,23 @@ export default function AdminOrderDetail() {
       supabase.removeChannel(ch);
     };
   }, [riderId, supabase]);
+
+  useEffect(() => {
+    if (!order || !mapsReady || !looksLikeCoords(order.address)) return;
+    const orderId = order.id;
+    let cancel = false;
+    new google.maps.Geocoder().geocode({ location: { lat: order.lat, lng: order.lng } }, (res, status) => {
+      const address = status === "OK" ? res?.[0]?.formatted_address : "";
+      if (cancel || !address) return;
+      setOrder((current) => (current && current.id === orderId ? { ...current, address } : current));
+      supabase.from("orders").update({ address }).eq("id", orderId);
+    });
+    return () => {
+      cancel = true;
+    };
+    // Resolve a stored coordinate string into a street address once per order.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [order?.id, order?.address, mapsReady, supabase]);
 
   const destination = useMemo(() => (order ? { lat: order.lat, lng: order.lng } : null), [order]);
   const dp = delivery?.delivery_person;
@@ -215,7 +234,20 @@ export default function AdminOrderDetail() {
                 <tbody>
                   {order.order_items?.map((i) => (
                     <tr key={i.id}>
-                      <td><p className="font-medium">{i.product_name}</p><p className="text-xs text-slate-500">{variantLabel(i.size, i.color)}</p></td>
+                      <td>
+                        <div className="flex items-center gap-3">
+                          <div className="h-12 w-12 shrink-0 overflow-hidden rounded-lg bg-slate-100">
+                            {i.image_url ? (
+                              // eslint-disable-next-line @next/next/no-img-element
+                              <img src={i.image_url} alt="" className="h-full w-full object-cover" />
+                            ) : null}
+                          </div>
+                          <div>
+                            <p className="font-medium">{i.product_name}</p>
+                            <p className="text-xs text-slate-500">{variantLabel(i.size, i.color) || "Standard"} · {money(i.unit_price)} each</p>
+                          </div>
+                        </div>
+                      </td>
                       <td>{i.quantity}</td>
                       <td>{money(i.unit_price)}</td>
                       <td className="text-slate-500">{money(i.unit_cost)}</td>
@@ -234,15 +266,26 @@ export default function AdminOrderDetail() {
         </div>
 
         <div className="space-y-6">
-          <section className="card space-y-2 p-5 text-sm">
-            <h2 className="mb-2 font-bold">Customer</h2>
-            <p className="font-semibold">{order.customer_name}</p>
-            {order.shop_name && <p>{order.shop_name}</p>}
-            <a href={`tel:${order.customer_phone}`} className="flex items-center gap-1 text-brand-600"><Phone className="h-4 w-4" /> {order.customer_phone}</a>
-            <p className="flex gap-1 text-slate-600"><MapPin className="mt-0.5 h-4 w-4 shrink-0" /> {order.address}</p>
-            <p className="text-xs text-slate-400">{order.lat.toFixed(6)}, {order.lng.toFixed(6)}</p>
-            <a href={mapsNavUrl(order.lat, order.lng)} target="_blank" rel="noreferrer" className="btn-secondary btn-sm mt-2"><Navigation className="h-3.5 w-3.5" /> Open in Google Maps</a>
-            {order.notes && <p className="mt-3 rounded-lg bg-amber-50 p-3 text-amber-800">Note: {order.notes}</p>}
+          <section className="card space-y-3 p-5 text-sm">
+            <h2 className="font-bold">Shop details</h2>
+            <p className="text-base font-semibold">{order.shop_name || "No shop name"}</p>
+            <p><span className="text-slate-500">Customer:</span> {order.customer_name}</p>
+            <a href={`tel:${order.customer_phone}`} className="flex items-center gap-1 font-medium text-brand-600"><Phone className="h-4 w-4" /> {order.customer_phone}</a>
+            <p className="flex gap-1 text-slate-600"><MapPin className="mt-0.5 h-4 w-4 shrink-0" /> {placeAddress(order.address)}</p>
+            <p><span className="text-slate-500">Payment:</span> {order.payment_method === "cod" ? "Cash on delivery" : order.payment_method.replace("_", " ")}</p>
+            <a href={mapsNavUrl(order.lat, order.lng)} target="_blank" rel="noreferrer" className="btn-secondary btn-sm"><Navigation className="h-3.5 w-3.5" /> Open in Google Maps</a>
+            {order.notes && <p className="rounded-lg bg-amber-50 p-3 text-amber-800">Note: {order.notes}</p>}
+            <div className="border-t pt-3">
+              <p className="mb-2 font-semibold">Products in this order</p>
+              <ul className="space-y-2">
+                {order.order_items?.map((i) => (
+                  <li key={i.id} className="rounded-lg bg-slate-50 px-3 py-2">
+                    <p className="font-medium">{i.product_name}</p>
+                    <p className="text-xs text-slate-500">{variantLabel(i.size, i.color) || "Standard"} · Qty {i.quantity} · {money(i.line_total)}</p>
+                  </li>
+                ))}
+              </ul>
+            </div>
           </section>
 
           <section className="card p-5">

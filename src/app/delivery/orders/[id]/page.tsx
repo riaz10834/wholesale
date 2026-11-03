@@ -10,7 +10,7 @@ import { useTracker } from "@/components/delivery/TrackerProvider";
 import { RouteMap } from "@/components/maps/RouteMap";
 import { StatusBadge } from "@/components/ui/StatusBadge";
 import type { Delivery, DeliveryStatus, Order } from "@/lib/types";
-import { errMsg, fmtDate, mapsNavUrl, money, variantLabel } from "@/lib/utils";
+import { errMsg, fmtDate, mapsNavUrl, money, placeAddress, variantLabel } from "@/lib/utils";
 
 export default function DeliveryOrder() {
   const { id } = useParams<{ id: string }>();
@@ -94,7 +94,7 @@ export default function DeliveryOrder() {
         </div>
         <p className="mt-3 text-lg font-semibold">{o.customer_name}</p>
         {o.shop_name && <p className="text-slate-600">{o.shop_name}</p>}
-        <p className="mt-1 flex gap-1 text-sm text-slate-500"><MapPin className="mt-0.5 h-4 w-4 shrink-0" /> {o.address}</p>
+        <p className="mt-1 flex gap-1 text-sm text-slate-500"><MapPin className="mt-0.5 h-4 w-4 shrink-0" /> {placeAddress(o.address)}</p>
         {o.notes && <p className="mt-3 rounded-lg bg-amber-50 p-3 text-sm text-amber-800">Note: {o.notes}</p>}
         <div className="mt-4 grid grid-cols-2 gap-2">
           <a href={`tel:${o.customer_phone}`} className="btn-primary py-3"><Phone className="h-4 w-4" /> Call {o.customer_phone}</a>

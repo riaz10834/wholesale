@@ -9,7 +9,7 @@ import { StatusBadge } from "@/components/ui/StatusBadge";
 import { OrderTimeline } from "@/components/ui/OrderTimeline";
 import { RouteMap } from "@/components/maps/RouteMap";
 import type { Order, OrderStatus, Profile } from "@/lib/types";
-import { errMsg, fmtDate, isLive, money, timeAgo, variantLabel } from "@/lib/utils";
+import { errMsg, fmtDate, isLive, money, placeAddress, timeAgo, variantLabel } from "@/lib/utils";
 
 type Courier = Pick<Profile, "id" | "full_name" | "phone" | "is_online" | "last_lat" | "last_lng" | "last_location_at">;
 
@@ -193,7 +193,7 @@ function OrderDetail() {
             <h2 className="mb-2 font-bold">Delivery details</h2>
             <p className="font-medium">{order.customer_name}{order.shop_name ? ` · ${order.shop_name}` : ""}</p>
             <p className="text-slate-600">{order.customer_phone}</p>
-            <p className="flex gap-1 text-slate-600"><MapPin className="mt-0.5 h-4 w-4 shrink-0" /> {order.address}</p>
+            <p className="flex gap-1 text-slate-600"><MapPin className="mt-0.5 h-4 w-4 shrink-0" /> {placeAddress(order.address)}</p>
             <p className="pt-2 text-slate-500">Payment: {order.payment_method === "cod" ? "Cash on delivery" : order.payment_method.replace("_", " ")}</p>
           </section>
         </div>

@@ -5,7 +5,7 @@ import { Loader2, Search } from "lucide-react";
 import { supabaseBrowser } from "@/lib/supabase/client";
 import { PageHeader, Empty } from "@/components/ui/PageHeader";
 import { StatusBadge } from "@/components/ui/StatusBadge";
-import { ALL_ORDER_STATUSES, STATUS_LABEL, cn, fmtDate, money } from "@/lib/utils";
+import { ALL_ORDER_STATUSES, STATUS_LABEL, cn, fmtDate, money, variantLabel } from "@/lib/utils";
 import type { Order, OrderStatus } from "@/lib/types";
 
 type Row = Order & { deliveries: { delivery_person: { full_name: string } | null }[] | { delivery_person: { full_name: string } | null } | null };
@@ -20,7 +20,7 @@ export default function AdminOrders() {
   const load = useCallback(async () => {
     let query = supabase
       .from("orders")
-      .select("*, deliveries(delivery_person:profiles(full_name))")
+      .select("*, order_items(product_name,size,color,quantity), deliveries(delivery_person:profiles(full_name))")
       .order("created_at", { ascending: false })
       .limit(200);
     if (status !== "all") query = query.eq("status", status);
@@ -85,8 +85,9 @@ export default function AdminOrders() {
                   <tr key={o.id} className="hover:bg-slate-50">
                     <td><Link href={`/admin/orders/${o.id}`} className="font-semibold text-brand-700 hover:underline">{o.order_number}</Link></td>
                     <td>
-                      <p className="font-medium">{o.customer_name}</p>
-                      <p className="text-xs text-slate-500">{o.customer_phone}{o.shop_name ? ` · ${o.shop_name}` : ""}</p>
+                      <p className="font-medium">{o.shop_name || o.customer_name}</p>
+                      <p className="text-xs text-slate-500">{o.customer_name} · {o.customer_phone}</p>
+                      <p className="text-xs text-slate-500">{o.order_items?.map((i) => `${i.product_name}${variantLabel(i.size, i.color) ? ` (${variantLabel(i.size, i.color)})` : ""} × ${i.quantity}`).join(", ")}</p>
                     </td>
                     <td className="whitespace-nowrap text-slate-500">{fmtDate(o.created_at)}</td>
                     <td><StatusBadge status={o.status} /></td>

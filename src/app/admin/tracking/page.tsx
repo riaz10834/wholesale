@@ -9,7 +9,7 @@ import { MapFallback } from "@/components/maps/MapFallback";
 import { courierIcon, destinationIcon } from "@/components/maps/markers";
 import { StatusBadge } from "@/components/ui/StatusBadge";
 import type { DeliveryStatus, Profile } from "@/lib/types";
-import { cn, isLive, timeAgo } from "@/lib/utils";
+import { cn, isLive, placeAddress, timeAgo } from "@/lib/utils";
 
 type Rider = Pick<Profile, "id" | "full_name" | "phone" | "is_online" | "is_active" | "last_lat" | "last_lng" | "last_accuracy" | "last_speed" | "last_location_at">;
 interface ActiveDelivery {
@@ -232,7 +232,7 @@ export default function LiveTracking() {
                       <div className="min-w-48 text-sm">
                         <p className="font-bold">{d.order.order_number}</p>
                         <p>{d.order.customer_name}{d.order.shop_name ? ` · ${d.order.shop_name}` : ""}</p>
-                        <p className="text-slate-500">{d.order.address}</p>
+                        <p className="text-slate-500">{placeAddress(d.order.address)}</p>
                         <a href={`tel:${d.order.customer_phone}`} className="text-blue-600">{d.order.customer_phone}</a>
                         <p className="mt-1"><Link href={`/admin/orders/${d.order.id}`} className="text-blue-600 underline">Open order</Link></p>
                       </div>

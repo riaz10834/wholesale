@@ -137,6 +137,10 @@ html.dark .admin-root .divide-y > :not([hidden]) ~ :not([hidden]) {
   border-color: #243049;
 }
 
+.pac-container {
+  z-index: 10000 !important;
+}
+
 .no-scrollbar::-webkit-scrollbar {
   display: none;
 }

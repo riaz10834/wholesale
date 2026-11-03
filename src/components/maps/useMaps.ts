@@ -9,6 +9,13 @@ export const DEFAULT_CENTER = {
   lng: Number(process.env.NEXT_PUBLIC_DEFAULT_LNG || 67.0011),
 };
 
+if (typeof window !== "undefined" && !(window as Window & { __gmapsAuthHook?: boolean }).__gmapsAuthHook) {
+  (window as Window & { __gmapsAuthHook?: boolean; gm_authFailure?: () => void }).__gmapsAuthHook = true;
+  (window as Window & { gm_authFailure?: () => void }).gm_authFailure = () => {
+    window.dispatchEvent(new Event("gmaps-auth-failed"));
+  };
+}
+
 export function useMaps() {
   const { isLoaded, loadError } = useJsApiLoader({
     id: "google-maps-script",

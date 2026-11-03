@@ -20,20 +20,60 @@ export function LocationPicker({
 }) {
   const { isLoaded, loadError, missingKey } = useMaps();
   const [map, setMap] = useState<google.maps.Map | null>(null);
+  const mapRef = useRef<google.maps.Map | null>(null);
   const [locating, setLocating] = useState(false);
   const [gpsError, setGpsError] = useState<string | null>(null);
+  const [mapError, setMapError] = useState<string | null>(null);
   const acRef = useRef<google.maps.places.Autocomplete | null>(null);
 
-  const reverseGeocode = useCallback(
-    (lat: number, lng: number) => {
-      if (!isLoaded) return onChange({ lat, lng, address: `${lat.toFixed(6)}, ${lng.toFixed(6)}` });
+  useEffect(() => {
+    const onFail = () =>
+      setMapError("Google Maps blocked this website. In the API key, open Website restrictions and add this site address, then wait 5 minutes.");
+    window.addEventListener("gmaps-auth-failed", onFail);
+    return () => window.removeEventListener("gmaps-auth-failed", onFail);
+  }, []);
+
+  const goTo = useCallback((lat: number, lng: number) => {
+    const target = mapRef.current;
+    target?.panTo({ lat, lng });
+    target?.setZoom(17);
+  }, []);
+
+  const choose = useCallback(
+    (lat: number, lng: number, address?: string) => {
+      goTo(lat, lng);
+      onChange({ lat, lng, address: address || "Finding address…" });
+      if (!isLoaded || !window.google?.maps?.Geocoder) return;
       new google.maps.Geocoder().geocode({ location: { lat, lng } }, (res, status) => {
-        const address = status === "OK" && res?.[0] ? res[0].formatted_address : `${lat.toFixed(6)}, ${lng.toFixed(6)}`;
-        onChange({ lat, lng, address });
+        if (status === "OK" && res?.[0]?.formatted_address) onChange({ lat, lng, address: res[0].formatted_address });
+        else if (!address) onChange({ lat, lng, address: "Pinned on map" });
       });
     },
-    [isLoaded, onChange]
+    [goTo, isLoaded, onChange]
   );
+
+  const selectPlace = useCallback(() => {
+    const place = acRef.current?.getPlace();
+    const query = place?.formatted_address || place?.name || "";
+    const point = place?.geometry?.location;
+    if (point) {
+      const lat = point.lat();
+      const lng = point.lng();
+      goTo(lat, lng);
+      onChange({ lat, lng, address: place?.formatted_address || place?.name || query });
+      return;
+    }
+    if (!query || !window.google?.maps?.Geocoder) return;
+    new google.maps.Geocoder().geocode({ address: query, componentRestrictions: { country: "PK" } }, (res, status) => {
+      const hit = status === "OK" ? res?.[0] : undefined;
+      const loc = hit?.geometry?.location;
+      if (!loc) return;
+      const lat = loc.lat();
+      const lng = loc.lng();
+      goTo(lat, lng);
+      onChange({ lat, lng, address: hit?.formatted_address || query });
+    });
+  }, [goTo, onChange]);
 
   const useMyLocation = useCallback(() => {
     setGpsError(null);
@@ -48,7 +88,7 @@ export function LocationPicker({
         const { latitude, longitude } = pos.coords;
         map?.panTo({ lat: latitude, lng: longitude });
         map?.setZoom(17);
-        reverseGeocode(latitude, longitude);
+        choose(latitude, longitude);
       },
       (err) => {
         setLocating(false);
@@ -60,7 +100,7 @@ export function LocationPicker({
       },
       { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 }
     );
-  }, [map, reverseGeocode]);
+  }, [map, choose]);
 
   useEffect(() => {
     if (value && map) map.panTo({ lat: value.lat, lng: value.lng });
@@ -84,46 +124,50 @@ export function LocationPicker({
     <div className="space-y-2">
       <Autocomplete
         onLoad={(ac) => (acRef.current = ac)}
-        onPlaceChanged={() => {
-          const place = acRef.current?.getPlace();
-          const loc = place?.geometry?.location;
-          if (loc) {
-            const lat = loc.lat();
-            const lng = loc.lng();
-            map?.panTo({ lat, lng });
-            map?.setZoom(17);
-            onChange({ lat, lng, address: place?.formatted_address || place?.name || `${lat}, ${lng}` });
-          }
+        onPlaceChanged={selectPlace}
+        options={{
+          fields: ["formatted_address", "geometry", "name"],
+          componentRestrictions: { country: "pk" },
         }}
       >
-        <input className="input" placeholder="Search your shop / area address" />
+        <input
+          className="input"
+          placeholder="Search your shop / area address"
+          onKeyDown={(e) => {
+            if (e.key === "Enter") e.preventDefault();
+          }}
+        />
       </Autocomplete>
       <div className="relative overflow-hidden rounded-xl border border-slate-200">
         <GoogleMap
           mapContainerStyle={{ width: "100%", height: 300 }}
           center={value ? { lat: value.lat, lng: value.lng } : DEFAULT_CENTER}
           zoom={value ? 17 : 12}
-          onLoad={setMap}
-          onClick={(e) => e.latLng && reverseGeocode(e.latLng.lat(), e.latLng.lng())}
-          options={{ styles: MAP_STYLE, streetViewControl: false, mapTypeControl: false, fullscreenControl: false }}
+          onLoad={(loaded) => {
+            mapRef.current = loaded;
+            setMap(loaded);
+          }}
+          onClick={(e) => e.latLng && choose(e.latLng.lat(), e.latLng.lng())}
+          options={{ styles: MAP_STYLE, streetViewControl: false, mapTypeControl: false, fullscreenControl: false, gestureHandling: "greedy", clickableIcons: false }}
         >
           {value && (
             <MarkerF
               position={{ lat: value.lat, lng: value.lng }}
               draggable
-              onDragEnd={(e) => e.latLng && reverseGeocode(e.latLng.lat(), e.latLng.lng())}
+              onDragEnd={(e) => e.latLng && choose(e.latLng.lat(), e.latLng.lng())}
             />
           )}
         </GoogleMap>
         <button
           type="button"
           onClick={useMyLocation}
-          className="absolute bottom-3 left-3 inline-flex items-center gap-2 rounded-lg bg-white px-3 py-2 text-sm font-medium text-slate-800 shadow-card hover:bg-slate-50"
+          className="absolute bottom-3 left-3 z-10 inline-flex items-center gap-2 rounded-lg bg-white px-3 py-2 text-sm font-medium text-slate-800 shadow-card hover:bg-slate-50"
         >
           {locating ? <Loader2 className="h-4 w-4 animate-spin" /> : <Crosshair className="h-4 w-4 text-brand-600" />}
           Use my GPS location
         </button>
       </div>
+      {mapError && <p className="text-xs text-rose-600">{mapError}</p>}
       {gpsError && <p className="text-xs text-rose-600">{gpsError}</p>}
       <p className="text-xs text-slate-500">
         {value ? (
