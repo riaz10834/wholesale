@@ -11,13 +11,16 @@ import { cn, fmtDate, mapsNavUrl, money } from "@/lib/utils";
 
 export default function DeliveryHome() {
   const supabase = supabaseBrowser();
-  const { user, profile } = useAuth();
+  const { user, profile, loading: authLoading } = useAuth();
   const [rows, setRows] = useState<Delivery[]>([]);
   const [tab, setTab] = useState<"active" | "done">("active");
   const [loading, setLoading] = useState(true);
 
   const load = useCallback(async () => {
-    if (!user) return;
+    if (!user) {
+      setLoading(false);
+      return;
+    }
     let q = supabase
       .from("deliveries")
       .select("*, order:orders(id,order_number,customer_name,customer_phone,shop_name,address,lat,lng,total,status,payment_status,payment_method,created_at)")
@@ -31,6 +34,7 @@ export default function DeliveryHome() {
   }, [supabase, user, profile?.role, tab]);
 
   useEffect(() => {
+    if (authLoading) return;
     load();
     if (!user) return;
     const ch = supabase
@@ -40,7 +44,7 @@ export default function DeliveryHome() {
     return () => {
       supabase.removeChannel(ch);
     };
-  }, [load, supabase, user]);
+  }, [authLoading, load, supabase, user]);
 
   return (
     <div className="space-y-5">

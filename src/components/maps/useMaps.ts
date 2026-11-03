@@ -1,4 +1,5 @@
 "use client";
+import { useEffect, useState } from "react";
 import { useJsApiLoader, type Libraries } from "@react-google-maps/api";
 
 const LIBRARIES: Libraries = ["places", "geometry"];
@@ -22,7 +23,13 @@ export function useMaps() {
     googleMapsApiKey: MAPS_KEY,
     libraries: LIBRARIES,
   });
-  return { isLoaded: isLoaded && !!MAPS_KEY, loadError, missingKey: !MAPS_KEY };
+  const [authFailed, setAuthFailed] = useState(false);
+  useEffect(() => {
+    const onFail = () => setAuthFailed(true);
+    window.addEventListener("gmaps-auth-failed", onFail);
+    return () => window.removeEventListener("gmaps-auth-failed", onFail);
+  }, []);
+  return { isLoaded: isLoaded && !!MAPS_KEY, loadError, missingKey: !MAPS_KEY, authFailed };
 }
 
 export const MAP_STYLE: google.maps.MapTypeStyle[] = [

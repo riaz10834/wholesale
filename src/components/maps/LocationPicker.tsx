@@ -1,7 +1,7 @@
 "use client";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Autocomplete, GoogleMap, MarkerF } from "@react-google-maps/api";
-import { Crosshair, Loader2 } from "lucide-react";
+import { GoogleMap, MarkerF } from "@react-google-maps/api";
+import { Crosshair, Loader2, MapPin } from "lucide-react";
 import { DEFAULT_CENTER, MAP_STYLE, useMaps } from "./useMaps";
 import { MapFallback } from "./MapFallback";
 
@@ -11,167 +11,261 @@ export interface PickedLocation {
   address: string;
 }
 
+type Prediction = { description: string; place_id: string };
+
+const ISB = { lat: 33.6844, lng: 73.0479 };
+
+async function predict(input: string, allowClient: boolean): Promise<Prediction[]> {
+  if (allowClient && window.google?.maps?.places?.AutocompleteService) {
+    const found = await new Promise<Prediction[] | null>((resolve) => {
+      const svc = new google.maps.places.AutocompleteService();
+      svc.getPlacePredictions(
+        {
+          input,
+          componentRestrictions: { country: "pk" },
+          location: new google.maps.LatLng(ISB.lat, ISB.lng),
+          radius: 80000,
+        },
+        (results, status) => {
+          if (status === "OK" && results) {
+            resolve(results.map((r) => ({ description: r.description, place_id: r.place_id })));
+            return;
+          }
+          if (status === "ZERO_RESULTS") {
+            resolve([]);
+            return;
+          }
+          resolve(null);
+        }
+      );
+    });
+    if (found) return found;
+  }
+  const res = await fetch(`/api/places?q=${encodeURIComponent(input)}`);
+  const data = (await res.json()) as { predictions?: Prediction[] };
+  return data.predictions || [];
+}
+
+async function resolvePlace(placeId: string, description: string, allowClient: boolean): Promise<PickedLocation | null> {
+  if (allowClient && window.google?.maps?.places?.PlacesService) {
+    const hit = await new Promise<PickedLocation | null>((resolve) => {
+      const svc = new google.maps.places.PlacesService(document.createElement("div"));
+      svc.getDetails({ placeId, fields: ["geometry", "formatted_address", "name"] }, (place, status) => {
+        const point = place?.geometry?.location;
+        if (status === "OK" && point) {
+          resolve({ lat: point.lat(), lng: point.lng(), address: place.formatted_address || description });
+          return;
+        }
+        resolve(null);
+      });
+    });
+    if (hit) return hit;
+  }
+  const res = await fetch(`/api/places?place_id=${encodeURIComponent(placeId)}`);
+  const data = (await res.json()) as { lat?: number; lng?: number; address?: string };
+  if (data.lat == null || data.lng == null) return null;
+  return { lat: data.lat, lng: data.lng, address: data.address || description };
+}
+
 export function LocationPicker({
   value,
   onChange,
   searchPlaceholder = "Search your shop / area address",
-  emptyHint = "Tap on the map, search, or use GPS to set your delivery location. Drag the pin to adjust.",
+  emptyHint = "Type an area like Islamabad PWD or Blue Area, then pick a place below.",
 }: {
   value: PickedLocation | null;
   onChange: (v: PickedLocation) => void;
   searchPlaceholder?: string;
   emptyHint?: string;
 }) {
-  const { isLoaded, loadError, missingKey } = useMaps();
-  const [map, setMap] = useState<google.maps.Map | null>(null);
+  const { isLoaded, loadError, missingKey, authFailed } = useMaps();
+  const mapOk = isLoaded && !authFailed;
   const mapRef = useRef<google.maps.Map | null>(null);
   const [locating, setLocating] = useState(false);
   const [gpsError, setGpsError] = useState<string | null>(null);
-  const [mapError, setMapError] = useState<string | null>(null);
-  const acRef = useRef<google.maps.places.Autocomplete | null>(null);
-
-  useEffect(() => {
-    const onFail = () =>
-      setMapError("Google Maps blocked this website. In the API key, open Website restrictions and add this site address, then wait 5 minutes.");
-    window.addEventListener("gmaps-auth-failed", onFail);
-    return () => window.removeEventListener("gmaps-auth-failed", onFail);
-  }, []);
+  const [query, setQuery] = useState(value?.address || "");
+  const [preds, setPreds] = useState<Prediction[]>([]);
+  const [searching, setSearching] = useState(false);
+  const [open, setOpen] = useState(false);
+  const [searchError, setSearchError] = useState<string | null>(null);
+  const skipSearch = useRef(false);
+  const typed = useRef(false);
+  const boxRef = useRef<HTMLDivElement>(null);
 
   const goTo = useCallback((lat: number, lng: number) => {
     const target = mapRef.current;
     target?.panTo({ lat, lng });
-    target?.setZoom(17);
+    target?.setZoom(16);
   }, []);
 
   const choose = useCallback(
     (lat: number, lng: number, address?: string) => {
       goTo(lat, lng);
       onChange({ lat, lng, address: address || "Finding address…" });
-      if (!isLoaded || !window.google?.maps?.Geocoder) return;
+      if (!mapOk || !window.google?.maps?.Geocoder) return;
       new google.maps.Geocoder().geocode({ location: { lat, lng } }, (res, status) => {
         if (status === "OK" && res?.[0]?.formatted_address) onChange({ lat, lng, address: res[0].formatted_address });
         else if (!address) onChange({ lat, lng, address: "Pinned on map" });
       });
     },
-    [goTo, isLoaded, onChange]
+    [goTo, mapOk, onChange]
   );
 
-  const selectPlace = useCallback(() => {
-    const place = acRef.current?.getPlace();
-    const query = place?.formatted_address || place?.name || "";
-    const point = place?.geometry?.location;
-    if (point) {
-      const lat = point.lat();
-      const lng = point.lng();
-      goTo(lat, lng);
-      onChange({ lat, lng, address: place?.formatted_address || place?.name || query });
+  useEffect(() => {
+    if (!typed.current || skipSearch.current) {
+      skipSearch.current = false;
       return;
     }
-    if (!query || !window.google?.maps?.Geocoder) return;
-    new google.maps.Geocoder().geocode({ address: query, componentRestrictions: { country: "PK" } }, (res, status) => {
-      const hit = status === "OK" ? res?.[0] : undefined;
-      const loc = hit?.geometry?.location;
-      if (!loc) return;
-      const lat = loc.lat();
-      const lng = loc.lng();
-      goTo(lat, lng);
-      onChange({ lat, lng, address: hit?.formatted_address || query });
-    });
-  }, [goTo, onChange]);
+    const q = query.trim();
+    if (q.length < 2) {
+      setPreds([]);
+      setSearching(false);
+      return;
+    }
+    setSearching(true);
+    setSearchError(null);
+    const timer = setTimeout(() => {
+      predict(q, mapOk)
+        .then((list) => {
+          setPreds(list);
+          setOpen(true);
+          if (!list.length) setSearchError(null);
+        })
+        .catch(() => setSearchError("Could not search places. Try again."))
+        .finally(() => setSearching(false));
+    }, 280);
+    return () => clearTimeout(timer);
+  }, [query, mapOk]);
+
+  useEffect(() => {
+    const onDoc = (e: MouseEvent) => {
+      if (boxRef.current && !boxRef.current.contains(e.target as Node)) setOpen(false);
+    };
+    document.addEventListener("mousedown", onDoc);
+    return () => document.removeEventListener("mousedown", onDoc);
+  }, []);
+
+  async function pick(p: Prediction) {
+    setOpen(false);
+    skipSearch.current = true;
+    setQuery(p.description);
+    setPreds([]);
+    const hit = await resolvePlace(p.place_id, p.description, mapOk);
+    if (!hit) {
+      setSearchError("Could not open that place. Try another result.");
+      return;
+    }
+    skipSearch.current = true;
+    setQuery(hit.address);
+    onChange(hit);
+    goTo(hit.lat, hit.lng);
+  }
 
   const useMyLocation = useCallback(() => {
     setGpsError(null);
     if (!("geolocation" in navigator)) {
-      setGpsError("GPS is not supported on this device. Please pick your location on the map.");
+      setGpsError("GPS is not supported on this device. Search for your area instead.");
       return;
     }
     setLocating(true);
     navigator.geolocation.getCurrentPosition(
       (pos) => {
         setLocating(false);
-        const { latitude, longitude } = pos.coords;
-        map?.panTo({ lat: latitude, lng: longitude });
-        map?.setZoom(17);
-        choose(latitude, longitude);
+        choose(pos.coords.latitude, pos.coords.longitude);
       },
       (err) => {
         setLocating(false);
         setGpsError(
           err.code === err.PERMISSION_DENIED
-            ? "Location permission denied. Allow location access in your browser or tap on the map to set your shop location."
-            : "Could not get your GPS location. Please try again or tap on the map."
+            ? "Location permission denied. Search for your shop area instead."
+            : "Could not get your GPS location. Search for your area instead."
         );
       },
       { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 }
     );
-  }, [map, choose]);
-
-  useEffect(() => {
-    if (value && map) map.panTo({ lat: value.lat, lng: value.lng });
-  }, [value, map]);
-
-  if (!isLoaded) {
-    return (
-      <div className="space-y-2">
-        <MapFallback missingKey={missingKey} error={!!loadError} height={300} />
-        <button type="button" onClick={useMyLocation} className="btn-secondary w-full">
-          {locating ? <Loader2 className="h-4 w-4 animate-spin" /> : <Crosshair className="h-4 w-4" />}
-          Use my current GPS location
-        </button>
-        {gpsError && <p className="text-xs text-rose-600">{gpsError}</p>}
-        {value && <p className="text-xs text-slate-600">Selected: {value.address}</p>}
-      </div>
-    );
-  }
+  }, [choose]);
 
   return (
     <div className="space-y-2">
-      <Autocomplete
-        onLoad={(ac) => (acRef.current = ac)}
-        onPlaceChanged={selectPlace}
-        options={{
-          fields: ["formatted_address", "geometry", "name"],
-          componentRestrictions: { country: "pk" },
-        }}
-      >
+      <div className="relative" ref={boxRef}>
+        <MapPin className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
         <input
-          className="input"
+          className="input pl-9"
+          value={query}
           placeholder={searchPlaceholder}
-          onKeyDown={(e) => {
-            if (e.key === "Enter") e.preventDefault();
+          autoComplete="off"
+          onFocus={() => preds.length && setOpen(true)}
+          onChange={(e) => {
+            typed.current = true;
+            skipSearch.current = false;
+            setQuery(e.target.value);
+            setOpen(true);
           }}
         />
-      </Autocomplete>
-      <div className="relative overflow-hidden rounded-xl border border-slate-200">
-        <GoogleMap
-          mapContainerStyle={{ width: "100%", height: 300 }}
-          center={value ? { lat: value.lat, lng: value.lng } : DEFAULT_CENTER}
-          zoom={value ? 17 : 12}
-          onLoad={(loaded) => {
-            mapRef.current = loaded;
-            setMap(loaded);
-          }}
-          onClick={(e) => e.latLng && choose(e.latLng.lat(), e.latLng.lng())}
-          options={{ styles: MAP_STYLE, streetViewControl: false, mapTypeControl: false, fullscreenControl: false, gestureHandling: "greedy", clickableIcons: false }}
-        >
-          {value && (
-            <MarkerF
-              position={{ lat: value.lat, lng: value.lng }}
-              draggable
-              onDragEnd={(e) => e.latLng && choose(e.latLng.lat(), e.latLng.lng())}
-            />
-          )}
-        </GoogleMap>
-        <button
-          type="button"
-          onClick={useMyLocation}
-          className="absolute bottom-3 left-3 z-10 inline-flex items-center gap-2 rounded-lg bg-white px-3 py-2 text-sm font-medium text-slate-800 shadow-card hover:bg-slate-50"
-        >
-          {locating ? <Loader2 className="h-4 w-4 animate-spin" /> : <Crosshair className="h-4 w-4 text-brand-600" />}
-          Use my GPS location
-        </button>
+        {open && (searching || preds.length > 0 || query.trim().length >= 2) && (
+          <ul className="absolute z-30 mt-1 max-h-64 w-full overflow-auto rounded-xl border border-slate-200 bg-white py-1 shadow-lg">
+            {searching && preds.length === 0 && (
+              <li className="flex items-center gap-2 px-3 py-2 text-sm text-slate-500">
+                <Loader2 className="h-3.5 w-3.5 animate-spin" /> Searching places…
+              </li>
+            )}
+            {!searching && preds.length === 0 && (
+              <li className="px-3 py-2 text-sm text-slate-500">No matching places. Try a fuller name, like Islamabad Blue Area.</li>
+            )}
+            {preds.map((p) => (
+              <li key={p.place_id}>
+                <button type="button" onClick={() => pick(p)} className="flex w-full items-start gap-2 px-3 py-2 text-left text-sm hover:bg-slate-50">
+                  <MapPin className="mt-0.5 h-3.5 w-3.5 shrink-0 text-brand-600" />
+                  <span>{p.description}</span>
+                </button>
+              </li>
+            ))}
+          </ul>
+        )}
       </div>
-      {mapError && <p className="text-xs text-rose-600">{mapError}</p>}
+
+      {mapOk ? (
+        <div className="relative overflow-hidden rounded-xl border border-slate-200">
+          <GoogleMap
+            mapContainerStyle={{ width: "100%", height: 300 }}
+            center={value ? { lat: value.lat, lng: value.lng } : DEFAULT_CENTER}
+            zoom={value ? 16 : 12}
+            onLoad={(loaded) => {
+              mapRef.current = loaded;
+            }}
+            onClick={(e) => e.latLng && choose(e.latLng.lat(), e.latLng.lng())}
+            options={{ styles: MAP_STYLE, streetViewControl: false, mapTypeControl: false, fullscreenControl: false, gestureHandling: "greedy", clickableIcons: false }}
+          >
+            {value && (
+              <MarkerF position={{ lat: value.lat, lng: value.lng }} draggable onDragEnd={(e) => e.latLng && choose(e.latLng.lat(), e.latLng.lng())} />
+            )}
+          </GoogleMap>
+          <button
+            type="button"
+            onClick={useMyLocation}
+            className="absolute bottom-3 left-3 z-10 inline-flex items-center gap-2 rounded-lg bg-white px-3 py-2 text-sm font-medium text-slate-800 shadow-card hover:bg-slate-50"
+          >
+            {locating ? <Loader2 className="h-4 w-4 animate-spin" /> : <Crosshair className="h-4 w-4 text-brand-600" />}
+            Use my GPS location
+          </button>
+        </div>
+      ) : (
+        <div className="space-y-2">
+          {!isLoaded && !missingKey && !loadError && !authFailed ? <MapFallback height={120} /> : null}
+          {(missingKey || loadError || authFailed) && (
+            <p className="text-xs text-amber-700">
+              The map tiles could not load. Search still works: type your area and pick a place from the list.
+              {authFailed ? " Google blocked this site, so add this website address to the API key restrictions." : ""}
+            </p>
+          )}
+          <button type="button" onClick={useMyLocation} className="btn-secondary w-full">
+            {locating ? <Loader2 className="h-4 w-4 animate-spin" /> : <Crosshair className="h-4 w-4" />}
+            Use my current GPS location
+          </button>
+        </div>
+      )}
+
+      {searchError && <p className="text-xs text-rose-600">{searchError}</p>}
       {gpsError && <p className="text-xs text-rose-600">{gpsError}</p>}
       <p className="text-xs text-slate-500">
         {value ? (

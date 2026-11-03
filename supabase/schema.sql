@@ -643,6 +643,8 @@ drop policy if exists customers_own on public.customers;
 create policy customers_own on public.customers for select using (user_id = auth.uid() or public.is_admin());
 drop policy if exists customers_own_upd on public.customers;
 create policy customers_own_upd on public.customers for update using (user_id = auth.uid()) with check (user_id = auth.uid());
+drop policy if exists customers_own_ins on public.customers;
+create policy customers_own_ins on public.customers for insert with check (user_id = auth.uid());
 drop policy if exists customers_admin on public.customers;
 create policy customers_admin on public.customers for all using (public.is_admin()) with check (public.is_admin());
 

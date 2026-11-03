@@ -49,6 +49,11 @@ export function Header() {
               <Truck className="h-4 w-4" /> Deliveries
             </Link>
           )}
+          {user && profile?.role === "customer" && (
+            <Link href="/account" className="btn-ghost hidden sm:inline-flex">
+              Shop address
+            </Link>
+          )}
           {user && (
             <Link href="/orders" className="btn-ghost hidden sm:inline-flex">
               My Orders
@@ -89,6 +94,7 @@ export function Header() {
         <div className="border-t border-slate-200 bg-white sm:hidden">
           <div className="container-x flex flex-col py-2" onClick={() => setMenu(false)}>
             <Link href="/products" className="rounded-lg px-3 py-2.5 text-sm font-medium hover:bg-slate-50">Catalog</Link>
+            {user && profile?.role === "customer" && <Link href="/account" className="rounded-lg px-3 py-2.5 text-sm font-medium hover:bg-slate-50">Shop address</Link>}
             {user && <Link href="/orders" className="rounded-lg px-3 py-2.5 text-sm font-medium hover:bg-slate-50">My Orders</Link>}
             {profile?.role === "admin" && <Link href="/admin" className="rounded-lg px-3 py-2.5 text-sm font-medium hover:bg-slate-50">Admin Dashboard</Link>}
             {profile?.role === "delivery" && <Link href="/delivery" className="rounded-lg px-3 py-2.5 text-sm font-medium hover:bg-slate-50">Delivery Panel</Link>}

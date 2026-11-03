@@ -35,31 +35,38 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         return;
       }
       const userId = u.id;
-      supabase
-        .from("profiles")
-        .select("id,email,full_name,phone,role,is_active,is_online,last_lat,last_lng,last_accuracy,last_heading,last_speed,last_location_at,created_at")
-        .eq("id", userId)
-        .single()
+      void Promise.resolve(
+        supabase
+          .from("profiles")
+          .select("id,email,full_name,phone,role,is_active,is_online,last_lat,last_lng,last_accuracy,last_heading,last_speed,last_location_at,created_at")
+          .eq("id", userId)
+          .single()
+      )
         .then(({ data }) => {
           setProfile((data as Profile) ?? null);
           setLoading(false);
-        });
+        })
+        .catch(() => setLoading(false));
     },
     [supabase]
   );
 
   useEffect(() => {
     let active = true;
-    // One local cookie read. getUser() would wait on the auth server before every page.
-    supabase.auth.getSession().then(({ data }) => {
-      if (active) loadProfile(data.session?.user ?? null);
-    });
+    // INITIAL_SESSION reads the cookie. A separate getSession() call deadlocks the auth lock and leaves the rider screen spinning.
     const { data: sub } = supabase.auth.onAuthStateChange((event, session) => {
-      if (!active || event === "TOKEN_REFRESHED" || event === "INITIAL_SESSION") return;
-      loadProfile(session?.user ?? null);
+      if (!active || event === "TOKEN_REFRESHED") return;
+      const u = session?.user ?? null;
+      setTimeout(() => {
+        if (active) loadProfile(u);
+      }, 0);
     });
+    const giveUp = setTimeout(() => {
+      if (active) setLoading(false);
+    }, 8000);
     return () => {
       active = false;
+      clearTimeout(giveUp);
       sub.subscription.unsubscribe();
     };
   }, [supabase, loadProfile]);

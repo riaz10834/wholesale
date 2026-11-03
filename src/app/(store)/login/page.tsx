@@ -1,14 +1,13 @@
 "use client";
 import { Suspense, useState } from "react";
 import Link from "next/link";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useSearchParams } from "next/navigation";
 import { Loader2 } from "lucide-react";
 import { supabaseBrowser } from "@/lib/supabase/client";
 import { useToast } from "@/components/providers/ToastProvider";
 import { errMsg } from "@/lib/utils";
 
 function LoginForm() {
-  const router = useRouter();
   const params = useSearchParams();
   const toast = useToast();
   const [email, setEmail] = useState("");
@@ -20,20 +19,25 @@ function LoginForm() {
     setLoading(true);
     const supabase = supabaseBrowser();
     const { data, error } = await supabase.auth.signInWithPassword({ email: email.trim(), password });
-    if (error) {
+    if (error || !data.user) {
       setLoading(false);
-      return toast.error(errMsg(error));
+      return toast.error(errMsg(error || "Sign in failed"));
     }
-    const { data: profile } = await supabase.from("profiles").select("role,is_active").eq("id", data.user.id).single();
-    if (profile && !profile.is_active) {
+    const profileResult = await Promise.race([
+      supabase.from("profiles").select("role,is_active").eq("id", data.user.id).maybeSingle(),
+      new Promise<{ data: { role?: string; is_active?: boolean } | null }>((resolve) => setTimeout(() => resolve({ data: null }), 6000)),
+    ]);
+    const profile = profileResult.data;
+    const role = profile?.role || (data.user.app_metadata?.role as string | undefined);
+    if (profile && profile.is_active === false) {
       await supabase.auth.signOut();
       setLoading(false);
       return toast.error("Your account is disabled. Contact the administrator.");
     }
     const next = params.get("next");
     const safeNext = next && next.startsWith("/") && !next.startsWith("//") ? next : null;
-    const dest = safeNext || (profile?.role === "admin" ? "/admin" : profile?.role === "delivery" ? "/delivery" : "/");
-    router.replace(dest);
+    const dest = safeNext || (role === "admin" ? "/admin" : role === "delivery" ? "/delivery" : "/");
+    window.location.assign(dest);
   }
 
   return (
