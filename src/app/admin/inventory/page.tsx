@@ -9,12 +9,15 @@ import { errMsg } from "@/lib/utils";
 interface VariantStock {
   id: string;
   quantity: number;
+  color: string | null;
+  colorHex: string | null;
 }
 
 interface ProductStock {
   id: string;
   name: string;
   variants: VariantStock[];
+  colors: { name: string; hex: string | null }[];
 }
 
 export default function AdminInventory() {
@@ -29,24 +32,28 @@ export default function AdminInventory() {
   const load = useCallback(async () => {
     const { data } = await supabase
       .from("products")
-      .select("id,name,is_active,product_variants(id,is_active,inventory(quantity))")
+      .select("id,name,is_active,product_variants(id,is_active,color,color_hex,inventory(quantity))")
       .eq("is_active", true)
       .order("name");
     const list: ProductStock[] = ((data || []) as {
       id: string;
       name: string;
-      product_variants: { id: string; is_active: boolean; inventory: { quantity: number } | { quantity: number }[] | null }[] | null;
+      product_variants: { id: string; is_active: boolean; color: string | null; color_hex: string | null; inventory: { quantity: number } | { quantity: number }[] | null }[] | null;
     }[])
-      .map((product) => ({
-        id: product.id,
-        name: product.name,
-        variants: (product.product_variants || [])
+      .map((product) => {
+        const variants = (product.product_variants || [])
           .filter((variant) => variant.is_active && variant.inventory)
           .map((variant) => {
             const stock = Array.isArray(variant.inventory) ? variant.inventory[0] : variant.inventory;
-            return { id: variant.id, quantity: Number(stock?.quantity || 0) };
-          }),
-      }))
+            return { id: variant.id, quantity: Number(stock?.quantity || 0), color: variant.color, colorHex: variant.color_hex };
+          });
+        const colors = variants.reduce<{ name: string; hex: string | null }[]>((list, variant) => {
+          if (!variant.color || list.some((color) => color.name === variant.color)) return list;
+          list.push({ name: variant.color, hex: variant.colorHex });
+          return list;
+        }, []);
+        return { id: product.id, name: product.name, variants, colors };
+      })
       .filter((product) => product.variants.length > 0);
     setRows(list);
     setQty(Object.fromEntries(list.map((product) => [product.id, String(product.variants.reduce((sum, variant) => sum + variant.quantity, 0))])));
@@ -126,7 +133,19 @@ export default function AdminInventory() {
                   const changed = qty[product.id] !== String(total(product));
                   return (
                     <tr key={product.id}>
-                      <td className="font-medium">{product.name}</td>
+                      <td>
+                        <p className="font-medium">{product.name}</p>
+                        {product.colors.length > 0 && (
+                          <div className="mt-1 flex flex-wrap gap-1.5">
+                            {product.colors.map((color) => (
+                              <span key={color.name} className="inline-flex items-center gap-1 rounded-full bg-slate-100 px-2 py-0.5 text-xs text-slate-600">
+                                <span className="h-2.5 w-2.5 rounded-full ring-1 ring-slate-300" style={{ background: color.hex || "#cbd5e1" }} />
+                                {color.name}
+                              </span>
+                            ))}
+                          </div>
+                        )}
+                      </td>
                       <td>
                         <input
                           type="number"
