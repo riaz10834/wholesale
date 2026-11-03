@@ -1,4 +1,4 @@
-# WholesaleHub — B2B Wholesale Ecommerce & Delivery Management
+# Wholesale-Brand — B2B Wholesale Ecommerce & Delivery Management
 
 Next.js 14 (App Router) · TypeScript · Tailwind CSS · Supabase (Postgres, Auth, Realtime, Storage) · Google Maps.
 

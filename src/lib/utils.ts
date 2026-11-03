@@ -1,6 +1,6 @@
 import type { DeliveryStatus, OrderStatus } from "./types";
 
-export const STORE_NAME = process.env.NEXT_PUBLIC_STORE_NAME || "WholesaleHub";
+export const STORE_NAME = process.env.NEXT_PUBLIC_STORE_NAME || "Wholesale-Brand";
 const CURRENCY = (process.env.NEXT_PUBLIC_CURRENCY || "PKR").toUpperCase();
 
 export function money(n: number | string | null | undefined) {
