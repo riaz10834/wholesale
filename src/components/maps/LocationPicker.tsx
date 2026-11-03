@@ -14,8 +14,35 @@ export interface PickedLocation {
 type Prediction = { description: string; place_id: string; lat?: number; lng?: number };
 
 const ISB = { lat: 33.6844, lng: 73.0479 };
+const PAKISTAN_PLACES: Prediction[] = [
+  { description: "Islamabad, Pakistan", place_id: "local:islamabad", lat: 33.6844, lng: 73.0479 },
+  { description: "Blue Area, Islamabad, Pakistan", place_id: "local:blue-area", lat: 33.7077, lng: 73.0551 },
+  { description: "PWD Housing Society, Islamabad, Pakistan", place_id: "local:pwd", lat: 33.5703, lng: 73.1318 },
+  { description: "Bahria Town, Rawalpindi, Pakistan", place_id: "local:bahria", lat: 33.532, lng: 73.1227 },
+  { description: "Rawalpindi, Pakistan", place_id: "local:rawalpindi", lat: 33.5651, lng: 73.0169 },
+  { description: "Peshawar, Pakistan", place_id: "local:peshawar", lat: 34.0151, lng: 71.5249 },
+  { description: "University Town, Peshawar, Pakistan", place_id: "local:university-town-peshawar", lat: 34.0018, lng: 71.5445 },
+  { description: "Hayatabad, Peshawar, Pakistan", place_id: "local:hayatabad", lat: 33.9767, lng: 71.4237 },
+  { description: "Lahore, Pakistan", place_id: "local:lahore", lat: 31.5204, lng: 74.3587 },
+  { description: "Karachi, Pakistan", place_id: "local:karachi", lat: 24.8607, lng: 67.0011 },
+  { description: "Faisalabad, Pakistan", place_id: "local:faisalabad", lat: 31.4504, lng: 73.135 },
+  { description: "Multan, Pakistan", place_id: "local:multan", lat: 30.1575, lng: 71.5249 },
+  { description: "Quetta, Pakistan", place_id: "local:quetta", lat: 30.1798, lng: 66.975 },
+  { description: "Gujranwala, Pakistan", place_id: "local:gujranwala", lat: 32.1877, lng: 74.1945 },
+];
+
+function localPredictions(input: string) {
+  const q = input.trim().toLowerCase().replace(/[^a-z0-9 ]/g, "");
+  if (q.length < 2) return [];
+  const words = q.split(/\s+/).filter(Boolean);
+  return PAKISTAN_PLACES.filter((place) => {
+    const text = place.description.toLowerCase();
+    return words.every((word) => text.includes(word));
+  });
+}
 
 async function predict(input: string, allowClient: boolean): Promise<Prediction[]> {
+  const local = localPredictions(input);
   if (allowClient && window.google?.maps?.places?.AutocompleteService) {
     const found = await new Promise<Prediction[] | null>((resolve) => {
       const svc = new google.maps.places.AutocompleteService();
@@ -39,11 +66,15 @@ async function predict(input: string, allowClient: boolean): Promise<Prediction[
         }
       );
     });
-    if (found?.length) return found;
+    if (found?.length) {
+      const ids = new Set(local.map((p) => p.place_id));
+      return [...local, ...found.filter((p) => !ids.has(p.place_id))].slice(0, 6);
+    }
   }
   const res = await fetch(`/api/places?q=${encodeURIComponent(input)}`);
   const data = (await res.json()) as { predictions?: Prediction[] };
-  return data.predictions || [];
+  const ids = new Set(local.map((p) => p.place_id));
+  return [...local, ...(data.predictions || []).filter((p) => !ids.has(p.place_id))].slice(0, 6);
 }
 
 async function resolvePlace(placeId: string, description: string, allowClient: boolean): Promise<PickedLocation | null> {
@@ -121,6 +152,12 @@ export function LocationPicker({
       setPreds([]);
       setSearching(false);
       return;
+    }
+    // Show familiar city/area matches immediately; the fuller online search follows.
+    const nearby = localPredictions(q);
+    if (nearby.length) {
+      setPreds(nearby);
+      setOpen(true);
     }
     setSearching(true);
     setSearchError(null);
@@ -205,15 +242,12 @@ export function LocationPicker({
             setOpen(true);
           }}
         />
-        {open && (searching || preds.length > 0 || query.trim().length >= 2) && (
+        {open && (searching || preds.length > 0) && (
           <ul className="absolute z-30 mt-1 max-h-64 w-full overflow-auto rounded-xl border border-slate-200 bg-white py-1 shadow-lg">
             {searching && preds.length === 0 && (
               <li className="flex items-center gap-2 px-3 py-2 text-sm text-slate-500">
                 <Loader2 className="h-3.5 w-3.5 animate-spin" /> Searching places…
               </li>
-            )}
-            {!searching && preds.length === 0 && (
-              <li className="px-3 py-2 text-sm text-slate-500">No matching places. Try a fuller name, like Islamabad Blue Area.</li>
             )}
             {preds.map((p) => (
               <li key={p.place_id}>
