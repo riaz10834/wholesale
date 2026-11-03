@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import { Check, ImageOff, Minus, Plus, ShoppingCart, Truck, Layers, Zap } from "lucide-react";
 import type { Product } from "@/lib/types";
 import { colorShots } from "@/lib/colorImages";
+import { ProductColorImage } from "@/components/store/ProductColorImage";
 import { cn, money } from "@/lib/utils";
 import { useCart } from "@/components/providers/CartProvider";
 import { useToast } from "@/components/providers/ToastProvider";
@@ -25,7 +26,9 @@ export function ProductDetail({ product }: { product: Product }) {
   const [color, setColor] = useState<string | null>(colors[0]?.[0] ?? null);
   const gallery = useMemo(() => colorShots(product, colors), [product, colors]);
   const active = Math.max(0, gallery.findIndex((shot) => shot.color === color));
-  const photo = gallery[active]?.src && !broken.includes(gallery[active].src) ? gallery[active].src : "";
+  const shot = gallery[active];
+  const photo = shot?.src && !broken.includes(shot.src) ? shot.src : "";
+  const tint = gallery.length > 1;
   const moq = product.min_order_qty;
   const [qty, setQty] = useState(moq);
 
@@ -71,11 +74,11 @@ export function ProductDetail({ product }: { product: Product }) {
       <div>
         <div className="aspect-square overflow-hidden rounded-3xl border border-slate-200 bg-white">
           {photo ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img
+            <ProductColorImage
               src={photo}
               alt={color ? `${product.name} — ${color}` : product.name}
-              className="h-full w-full object-cover"
+              color={tint ? shot?.color ?? null : null}
+              hex={tint ? shot?.hex ?? null : null}
               onError={() => setBroken((list) => (list.includes(photo) ? list : [...list, photo]))}
             />
           ) : (
@@ -89,19 +92,13 @@ export function ProductDetail({ product }: { product: Product }) {
               const selected = i === active;
               return (
                 <button
-                  key={shot.color || shot.src || i}
+                  key={shot.color || i}
                   onClick={() => shot.color && setColor(shot.color)}
                   className={cn("w-20 shrink-0 overflow-hidden rounded-xl border-2 bg-white", selected ? "border-brand-600" : "border-transparent")}
                 >
                   <span className="block h-16 w-full">
                     {src ? (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img
-                        src={src}
-                        alt={shot.color || ""}
-                        className="h-full w-full object-cover"
-                        onError={() => setBroken((list) => (list.includes(src) ? list : [...list, src]))}
-                      />
+                      <ProductColorImage src={src} alt={shot.color || ""} color={shot.color} hex={shot.hex} />
                     ) : (
                       <span className="flex h-full items-center justify-center text-slate-300"><ImageOff className="h-5 w-5" /></span>
                     )}
