@@ -1,6 +1,7 @@
 "use client";
 import { useEffect, useState } from "react";
 import { Landmark, Loader2 } from "lucide-react";
+import { BankPicker } from "@/components/admin/BankPicker";
 import { supabaseBrowser } from "@/lib/supabase/client";
 import { useToast } from "@/components/providers/ToastProvider";
 import { PageHeader } from "@/components/ui/PageHeader";
@@ -80,8 +81,8 @@ export default function BankAccountPage() {
           <p className="text-sm text-slate-600">Put the account you want paid into. The customer sees the bank, title, number, IBAN and branch at checkout and on the order.</p>
         </div>
         <div>
-          <label className="label">Bank name *</label>
-          <input className="input" value={form.bank_name} onChange={set("bank_name")} placeholder="HBL, Meezan, JazzCash…" maxLength={80} required />
+          <label className="label">Bank *</label>
+          <BankPicker value={form.bank_name} onChange={(bank_name) => setForm((f) => ({ ...f, bank_name }))} />
         </div>
         <div>
           <label className="label">Account title *</label>

@@ -1,6 +1,8 @@
 "use client";
 import { useState } from "react";
 import { Copy, Landmark } from "lucide-react";
+import { BankMark } from "@/components/ui/BankMark";
+import { findBank } from "@/lib/pkBanks";
 import type { BankAccount } from "@/lib/types";
 import { money } from "@/lib/utils";
 
@@ -16,6 +18,7 @@ export function BankDetails({ bank, amount }: { bank: BankAccount | null; amount
     return <p className="text-sm text-slate-500">Bank details are not set yet. The shop will share them with you.</p>;
   }
 
+  const mark = findBank(bank!.bank_name);
   const rows = [
     ["Bank", bank!.bank_name],
     ["Account title", bank!.account_title],
@@ -43,9 +46,12 @@ export function BankDetails({ bank, amount }: { bank: BankAccount | null; amount
       <dl className="mt-3 space-y-2 text-sm">
         {rows.map(([label, value]) => (
           <div key={label} className="flex items-start justify-between gap-3">
-            <div>
-              <dt className="text-xs text-slate-500">{label}</dt>
-              <dd className="font-semibold text-slate-900">{value}</dd>
+            <div className="flex items-center gap-2">
+              {label === "Bank" && mark && <BankMark bank={mark} className="h-8 w-8" />}
+              <div>
+                <dt className="text-xs text-slate-500">{label}</dt>
+                <dd className="font-semibold text-slate-900">{value}</dd>
+              </div>
             </div>
             {(label === "Account number" || label === "IBAN") && (
               <button type="button" onClick={() => copy(label!, value!)} className="mt-3 inline-flex items-center gap-1 text-xs font-semibold text-brand-700">
