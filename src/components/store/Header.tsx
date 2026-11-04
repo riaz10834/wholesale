@@ -2,7 +2,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-import { LayoutDashboard, LogOut, Package, Search, ShoppingCart, Truck, User, Menu, X } from "lucide-react";
+import { LayoutDashboard, LogOut, Search, ShoppingCart, Truck, User, Menu, X } from "lucide-react";
 import { useAuth } from "@/components/providers/AuthProvider";
 import { useCart } from "@/components/providers/CartProvider";
 import { NotificationBell } from "@/components/ui/NotificationBell";
@@ -22,12 +22,10 @@ export function Header() {
 
   return (
     <header className="sticky top-0 z-40 border-b border-slate-200/70 bg-white/90 backdrop-blur">
-      <div className="container-x flex h-16 items-center gap-3">
-        <Link href="/" className="flex shrink-0 items-center gap-2">
-          <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-brand-500 to-brand-800 text-white shadow-lift">
-            <Package className="h-5 w-5" />
-          </span>
-          <span className="hidden text-lg font-extrabold tracking-tight text-slate-900 sm:block">{STORE_NAME}</span>
+      <div className="container-x flex h-20 items-center gap-3">
+        <Link href="/" className="flex shrink-0 items-center">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src="/logo.png?v=4" alt={STORE_NAME} className="h-16 w-auto" />
         </Link>
 
         <form onSubmit={submit} className="relative mx-auto hidden max-w-xl flex-1 md:block">
