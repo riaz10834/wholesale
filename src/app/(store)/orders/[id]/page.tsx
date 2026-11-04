@@ -4,12 +4,14 @@ import Link from "next/link";
 import { useParams, useSearchParams } from "next/navigation";
 import { ArrowLeft, CheckCircle2, Loader2, MapPin, Phone, Radio, Truck, Warehouse } from "lucide-react";
 import { supabaseBrowser } from "@/lib/supabase/client";
+import { useAuth } from "@/components/providers/AuthProvider";
 import { useToast } from "@/components/providers/ToastProvider";
 import { StatusBadge } from "@/components/ui/StatusBadge";
 import { OrderTimeline } from "@/components/ui/OrderTimeline";
 import { RouteMap } from "@/components/maps/RouteMap";
 import { BankDetails } from "@/components/store/BankDetails";
 import { PaymentProofForm } from "@/components/store/PaymentProofForm";
+import { OrderChat } from "@/components/order/OrderChat";
 import { loadBankAccount } from "@/lib/bankAccount";
 import { useDispatchPoint } from "@/components/maps/useDispatchPoint";
 import type { BankAccount, Order, OrderStatus, PaymentProof, Profile } from "@/lib/types";
@@ -29,6 +31,7 @@ function OrderDetail() {
   const { id } = useParams<{ id: string }>();
   const placed = useSearchParams().get("placed");
   const supabase = supabaseBrowser();
+  const { user } = useAuth();
   const toast = useToast();
   const [order, setOrder] = useState<Order | null>(null);
   const [bank, setBank] = useState<BankAccount | null>(null);
@@ -218,6 +221,14 @@ function OrderDetail() {
         </div>
 
         <div className="space-y-6">
+          {courierId && user ? (
+            <OrderChat orderId={order.id} meId={user.id} title={`Chat with ${courier?.full_name || "your rider"}`} />
+          ) : (
+            <section className="card p-5">
+              <h2 className="font-bold">Chat with rider</h2>
+              <p className="mt-2 text-sm text-slate-500">Text and voice open here once a rider is assigned to this order.</p>
+            </section>
+          )}
           <section className="card p-5">
             <h2 className="mb-4 font-bold">Order status</h2>
             <OrderTimeline status={order.status} history={history} />

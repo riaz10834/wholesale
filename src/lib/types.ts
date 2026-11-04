@@ -136,6 +136,17 @@ export interface Order {
   deliveries?: Delivery[] | Delivery | null;
 }
 
+export interface OrderMessage {
+  id: string;
+  order_id: string;
+  sender_id: string;
+  kind: "text" | "voice";
+  body: string | null;
+  audio_base64: string | null;
+  audio_mime: string | null;
+  created_at: string;
+}
+
 export interface PaymentProof {
   order_id: string;
   reference: string;

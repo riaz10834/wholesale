@@ -8,6 +8,7 @@ import { useAuth } from "@/components/providers/AuthProvider";
 import { useToast } from "@/components/providers/ToastProvider";
 import { useTracker } from "@/components/delivery/TrackerProvider";
 import { RouteMap } from "@/components/maps/RouteMap";
+import { OrderChat } from "@/components/order/OrderChat";
 import { StatusBadge } from "@/components/ui/StatusBadge";
 import type { Delivery, DeliveryStatus, Order } from "@/lib/types";
 import { errMsg, fmtDate, mapsNavUrl, money, placeAddress, variantLabel } from "@/lib/utils";
@@ -101,6 +102,8 @@ export default function DeliveryOrder() {
           <a href={mapsNavUrl(o.lat, o.lng)} target="_blank" rel="noreferrer" className="btn-secondary py-3"><Navigation className="h-4 w-4" /> Navigate</a>
         </div>
       </div>
+
+      {user && <OrderChat orderId={o.id} meId={user.id} title={`Chat with ${o.customer_name}`} />}
 
       {destination && <RouteMap destination={destination} courier={me} height={280} showRoute={!closed && !!me} />}
       {!tracker.tracking && profile?.role === "delivery" && !closed && (
