@@ -909,6 +909,12 @@ create policy order_messages_read on public.order_messages
 
 grant select on public.order_messages to authenticated;
 
+drop policy if exists order_messages_delete on public.order_messages;
+create policy order_messages_delete on public.order_messages
+  for delete using (sender_id = auth.uid() or public.is_admin());
+
+grant delete on public.order_messages to authenticated;
+
 create or replace function public.send_order_message(
   p_order_id uuid,
   p_kind text,

@@ -83,6 +83,11 @@ export default function CheckoutPage() {
     if (error) return toast.error(errMsg(error));
     clear();
     toast.success("Order placed successfully!");
+    void fetch("/api/order-alert", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ orderId: data }),
+    }).catch(() => {});
     router.replace(`/orders/${data}?placed=1`);
   }
 
