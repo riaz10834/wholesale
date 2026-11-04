@@ -59,7 +59,7 @@ export function AdminShell({ name, children }: { name: string; children: React.R
       <aside className={cn("fixed inset-y-0 left-0 z-40 hidden w-64 flex-col lg:flex", dark ? "bg-ink-800" : "border-r border-slate-200 bg-white")}>
         <div className="flex h-16 items-center px-5">
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/logo.png?v=4" alt={STORE_NAME} className="h-9 w-auto rounded-lg" />
+          <img src="/logo.png?v=6" alt={STORE_NAME} className="h-9 w-auto rounded-lg" />
         </div>
         <div className="no-scrollbar flex-1 overflow-y-auto">{nav}</div>
         <div className={cn("border-t p-3", dark ? "border-white/10" : "border-slate-200")}>
@@ -74,7 +74,7 @@ export function AdminShell({ name, children }: { name: string; children: React.R
           <aside className={cn("no-scrollbar absolute inset-y-0 left-0 w-72 overflow-y-auto", dark ? "bg-ink-800 text-white" : "bg-white text-slate-900")}>
             <div className="flex h-16 items-center justify-between px-5">
               {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src="/logo.png?v=4" alt={STORE_NAME} className="h-9 w-auto rounded-lg" />
+              <img src="/logo.png?v=6" alt={STORE_NAME} className="h-9 w-auto rounded-lg" />
               <button onClick={() => setOpen(false)}><X className="h-5 w-5" /></button>
             </div>
             {nav}

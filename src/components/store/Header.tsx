@@ -25,7 +25,7 @@ export function Header() {
       <div className="container-x flex h-20 items-center gap-3">
         <Link href="/" className="flex shrink-0 items-center">
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/logo.png?v=4" alt={STORE_NAME} className="h-16 w-auto" />
+          <img src="/logo.png?v=6" alt={STORE_NAME} className="h-16 w-auto" />
         </Link>
 
         <form onSubmit={submit} className="relative mx-auto hidden max-w-xl flex-1 md:block">

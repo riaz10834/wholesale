@@ -7,7 +7,7 @@ export function Footer() {
       <div className="container-x grid gap-8 py-12 sm:grid-cols-3">
         <div>
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/logo.png?v=4" alt={STORE_NAME} className="h-16 w-auto rounded-lg" />
+          <img src="/logo.png?v=6" alt={STORE_NAME} className="h-16 w-auto rounded-lg" />
           <p className="mt-2 max-w-xs text-sm text-slate-500">
             Wholesale stock for retailers and shop owners — bulk prices, minimum order quantities, and live-tracked delivery to your door.
           </p>
