@@ -8,19 +8,29 @@ import { StatusBadge } from "@/components/ui/StatusBadge";
 import type { Order, Payment } from "@/lib/types";
 import { fmtDate, money } from "@/lib/utils";
 
+type ProofRow = {
+  order_id: string;
+  reference: string;
+  created_at: string;
+  order: { order_number: string; customer_name: string; customer_phone: string; total: number } | { order_number: string; customer_name: string; customer_phone: string; total: number }[] | null;
+};
+
 export default function AdminPayments() {
   const supabase = supabaseBrowser();
   const [payments, setPayments] = useState<Payment[]>([]);
   const [due, setDue] = useState<Order[]>([]);
-  const [tab, setTab] = useState<"received" | "due">("received");
+  const [tab, setTab] = useState<"received" | "due" | "check">("check");
+  const [proofs, setProofs] = useState<ProofRow[]>([]);
 
   const load = useCallback(async () => {
-    const [p, d] = await Promise.all([
+    const [p, d, proofsRes] = await Promise.all([
       supabase.from("payments").select("*, order:orders(id,order_number,customer_name)").order("created_at", { ascending: false }).limit(500),
       supabase.from("orders").select("*, payments(amount)").in("payment_status", ["unpaid", "partial"]).not("status", "in", "(cancelled,returned)").order("created_at", { ascending: false }).limit(500),
+      supabase.from("payment_proofs").select("order_id,reference,created_at, order:orders(order_number,customer_name,customer_phone,total)").eq("status", "submitted").order("created_at", { ascending: false }),
     ]);
     setPayments((p.data as unknown as Payment[]) || []);
     setDue((d.data as unknown as Order[]) || []);
+    setProofs(proofsRes.error ? [] : ((proofsRes.data as unknown as ProofRow[]) || []));
   }, [supabase]);
   useEffect(() => {
     load();
@@ -34,17 +44,38 @@ export default function AdminPayments() {
 
   return (
     <>
-      <PageHeader title="Payments" subtitle="Record payments from the order page; cash collected by riders is added automatically." />
+      <PageHeader title="Payments" subtitle="Bank transfers stay unpaid until you match the receipt in your own bank app." />
       <div className="mb-6 grid gap-4 sm:grid-cols-2">
         <StatCard label="Payments received (latest 500)" value={money(received)} icon={Wallet} tone="emerald" />
         <StatCard label="Outstanding receivables" value={money(outstanding)} hint={`${due.length} orders`} icon={CreditCard} tone="rose" />
       </div>
       <div className="mb-4 flex gap-2">
+        <button onClick={() => setTab("check")} className={tab === "check" ? "btn-primary btn-sm" : "btn-secondary btn-sm"}>To check ({proofs.length})</button>
         <button onClick={() => setTab("received")} className={tab === "received" ? "btn-primary btn-sm" : "btn-secondary btn-sm"}>Received</button>
         <button onClick={() => setTab("due")} className={tab === "due" ? "btn-primary btn-sm" : "btn-secondary btn-sm"}>Outstanding</button>
       </div>
       <div className="card overflow-x-auto">
-        {tab === "received" ? (
+        {tab === "check" ? (
+          proofs.length === 0 ? <Empty text="No bank receipts waiting. A customer receipt shows up here, and in the bell, until you confirm it on the order." /> : (
+            <table className="table-x">
+              <thead><tr><th>Sent</th><th>Order</th><th>Customer</th><th>Transaction ID</th><th className="text-right">Amount</th></tr></thead>
+              <tbody>
+                {proofs.map((row) => {
+                  const order = Array.isArray(row.order) ? row.order[0] : row.order;
+                  return (
+                    <tr key={row.order_id}>
+                      <td className="text-slate-500">{fmtDate(row.created_at)}</td>
+                      <td><Link href={`/admin/orders/${row.order_id}`} className="font-semibold text-brand-700">{order?.order_number || "Order"}</Link></td>
+                      <td>{order?.customer_name}<p className="text-xs text-slate-500">{order?.customer_phone}</p></td>
+                      <td className="font-semibold">{row.reference}</td>
+                      <td className="text-right font-semibold">{order ? money(order.total) : "—"}</td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          )
+        ) : tab === "received" ? (
           payments.length === 0 ? <Empty text="No payments recorded" /> : (
             <table className="table-x">
               <thead><tr><th>Date</th><th>Order</th><th>Customer</th><th>Method</th><th>Reference</th><th className="text-right">Amount</th></tr></thead>

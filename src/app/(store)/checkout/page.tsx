@@ -139,7 +139,7 @@ export default function CheckoutPage() {
             <div className="mt-4 grid gap-3 sm:grid-cols-2">
               {[
                 { v: "cod", t: "Cash on delivery", d: "Pay the rider when goods arrive" },
-                { v: "bank_transfer", t: "Bank transfer", d: "Pay into the shop account shown below" },
+                { v: "bank_transfer", t: "Bank transfer", d: "Transfer, then upload the receipt. Paid only after the shop confirms it" },
               ].map((o) => (
                 <label key={o.v} className={`flex cursor-pointer gap-3 rounded-xl border p-4 ${payment === o.v ? "border-brand-600 bg-brand-50/50" : "border-slate-200"}`}>
                   <input type="radio" name="pay" checked={payment === o.v} onChange={() => setPayment(o.v as "cod" | "bank_transfer")} className="mt-1 accent-brand-600" />
@@ -153,6 +153,7 @@ export default function CheckoutPage() {
             {payment === "bank_transfer" && (
               <div className="mt-4">
                 <BankDetails bank={bank} amount={subtotal} />
+                <p className="mt-3 text-xs text-slate-500">After you place the order, open it and send the receipt screenshot plus the transaction ID. The shop matches that ID in their bank before the order is paid.</p>
               </div>
             )}
             <label className="label mt-4" htmlFor="notes">Order notes</label>

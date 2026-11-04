@@ -9,9 +9,10 @@ import { StatusBadge } from "@/components/ui/StatusBadge";
 import { OrderTimeline } from "@/components/ui/OrderTimeline";
 import { RouteMap } from "@/components/maps/RouteMap";
 import { BankDetails } from "@/components/store/BankDetails";
+import { PaymentProofForm } from "@/components/store/PaymentProofForm";
 import { loadBankAccount } from "@/lib/bankAccount";
 import { useDispatchPoint } from "@/components/maps/useDispatchPoint";
-import type { BankAccount, Order, OrderStatus, Profile } from "@/lib/types";
+import type { BankAccount, Order, OrderStatus, PaymentProof, Profile } from "@/lib/types";
 import { errMsg, fmtDate, isLive, money, placeAddress, timeAgo, variantLabel } from "@/lib/utils";
 
 type Courier = Pick<Profile, "id" | "full_name" | "phone" | "is_online" | "last_lat" | "last_lng" | "last_location_at">;
@@ -31,6 +32,7 @@ function OrderDetail() {
   const toast = useToast();
   const [order, setOrder] = useState<Order | null>(null);
   const [bank, setBank] = useState<BankAccount | null>(null);
+  const [proof, setProof] = useState<PaymentProof | null>(null);
   const [history, setHistory] = useState<{ status: OrderStatus; created_at: string }[]>([]);
   const [courier, setCourier] = useState<Courier | null>(null);
   const [courierId, setCourierId] = useState<string | null>(null);
@@ -46,9 +48,15 @@ function OrderDetail() {
     const orderRow = o as unknown as Order;
     setOrder(orderRow);
     if (orderRow?.payment_method === "bank_transfer") {
-      setBank(await loadBankAccount(supabase));
+      const [account, proofRes] = await Promise.all([
+        loadBankAccount(supabase),
+        supabase.from("payment_proofs").select("order_id,reference,image_base64,status,reject_reason,created_at,reviewed_at").eq("order_id", id).maybeSingle(),
+      ]);
+      setBank(account);
+      setProof(proofRes.error ? null : (proofRes.data as PaymentProof | null));
     } else {
       setBank(null);
+      setProof(null);
     }
     setHistory((h as { status: OrderStatus; created_at: string }[]) || []);
     const d = o ? (Array.isArray(o.deliveries) ? o.deliveries[0] : o.deliveries) : null;
@@ -232,6 +240,16 @@ function OrderDetail() {
             {order.payment_method === "bank_transfer" && order.payment_status !== "paid" && (
               <div className="pt-3">
                 <BankDetails bank={bank} amount={order.total} />
+                <PaymentProofForm
+                  supabase={supabase}
+                  orderId={order.id}
+                  amount={order.total}
+                  proof={proof}
+                  closed={["cancelled", "returned"].includes(order.status)}
+                  onDone={load}
+                  onError={(message) => toast.error(message)}
+                  onSuccess={(message) => toast.success(message)}
+                />
               </div>
             )}
           </section>

@@ -9,7 +9,8 @@ import { StatusBadge } from "@/components/ui/StatusBadge";
 import { OrderTimeline } from "@/components/ui/OrderTimeline";
 import { RouteMap } from "@/components/maps/RouteMap";
 import { useDispatchPoint } from "@/components/maps/useDispatchPoint";
-import type { Delivery, Order, OrderStatus, Payment, Profile } from "@/lib/types";
+import { TransferProof } from "@/components/admin/TransferProof";
+import type { Delivery, Order, OrderStatus, Payment, PaymentProof, Profile } from "@/lib/types";
 import { useMaps } from "@/components/maps/useMaps";
 import { ALL_ORDER_STATUSES, ORDER_FLOW, STATUS_LABEL, errMsg, fmtDate, isLive, looksLikeCoords, mapsNavUrl, money, placeAddress, timeAgo, variantLabel } from "@/lib/utils";
 
@@ -24,6 +25,7 @@ export default function AdminOrderDetail() {
   const [delivery, setDelivery] = useState<(Delivery & { delivery_person: Rider | null }) | null>(null);
   const [history, setHistory] = useState<{ status: OrderStatus; created_at: string }[]>([]);
   const [payments, setPayments] = useState<Payment[]>([]);
+  const [proof, setProof] = useState<PaymentProof | null>(null);
   const [riders, setRiders] = useState<Rider[]>([]);
   const [rider, setRider] = useState("");
   const [busy, setBusy] = useState<string | null>(null);
@@ -41,6 +43,12 @@ export default function AdminOrderDetail() {
     setDelivery(d.data as never);
     setHistory((h.data as never) || []);
     setPayments((p.data as Payment[]) || []);
+    if ((o.data as Order | null)?.payment_method === "bank_transfer") {
+      const proofRes = await supabase.from("payment_proofs").select("order_id,reference,image_base64,status,reject_reason,created_at,reviewed_at").eq("order_id", id).maybeSingle();
+      setProof(proofRes.error ? null : (proofRes.data as PaymentProof | null));
+    } else {
+      setProof(null);
+    }
     if (d.data) setRider((d.data as { delivery_person_id: string }).delivery_person_id);
   }, [id, supabase]);
 
@@ -315,6 +323,17 @@ export default function AdminOrderDetail() {
           <section className="card p-5">
             <h2 className="font-bold">Payments</h2>
             <p className="mt-1 text-sm text-slate-500">Paid {money(paid)} of {money(order.total)} · {order.payment_method === "cod" ? "Cash on delivery" : order.payment_method.replace("_", " ")}</p>
+            {order.payment_method === "bank_transfer" && (
+              <TransferProof
+                supabase={supabase}
+                order={order}
+                proof={proof}
+                paid={paid}
+                onDone={load}
+                onError={(message) => toast.error(message)}
+                onSuccess={(message) => toast.success(message)}
+              />
+            )}
             <ul className="mt-3 space-y-2">
               {payments.map((p) => (
                 <li key={p.id} className="flex items-center justify-between rounded-lg bg-slate-50 px-3 py-2 text-sm">

@@ -136,6 +136,16 @@ export interface Order {
   deliveries?: Delivery[] | Delivery | null;
 }
 
+export interface PaymentProof {
+  order_id: string;
+  reference: string;
+  image_base64: string;
+  status: "submitted" | "accepted" | "rejected";
+  reject_reason: string | null;
+  created_at: string;
+  reviewed_at: string | null;
+}
+
 export interface Payment {
   id: string;
   order_id: string;
