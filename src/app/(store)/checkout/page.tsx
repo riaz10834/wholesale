@@ -8,6 +8,8 @@ import { useAuth } from "@/components/providers/AuthProvider";
 import { useToast } from "@/components/providers/ToastProvider";
 import { supabaseBrowser } from "@/lib/supabase/client";
 import { LocationPicker, type PickedLocation } from "@/components/maps/LocationPicker";
+import { BANK_SELECT, BankDetails } from "@/components/store/BankDetails";
+import type { BankAccount } from "@/lib/types";
 import { PHONE_RE, errMsg, money, variantLabel } from "@/lib/utils";
 
 export default function CheckoutPage() {
@@ -22,9 +24,16 @@ export default function CheckoutPage() {
   const [shop, setShop] = useState("");
   const [notes, setNotes] = useState("");
   const [payment, setPayment] = useState<"cod" | "bank_transfer">("cod");
+  const [bank, setBank] = useState<BankAccount | null>(null);
   const [loc, setLoc] = useState<PickedLocation | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
+
+  useEffect(() => {
+    supabase.from("store_settings").select(BANK_SELECT).eq("id", 1).maybeSingle().then(({ data }) => {
+      if (data) setBank(data as BankAccount);
+    });
+  }, [supabase]);
 
   useEffect(() => {
     if (!user) return;
@@ -131,7 +140,7 @@ export default function CheckoutPage() {
             <div className="mt-4 grid gap-3 sm:grid-cols-2">
               {[
                 { v: "cod", t: "Cash on delivery", d: "Pay the rider when goods arrive" },
-                { v: "bank_transfer", t: "Bank transfer", d: "We'll confirm payment details by phone" },
+                { v: "bank_transfer", t: "Bank transfer", d: "Pay into the shop account shown below" },
               ].map((o) => (
                 <label key={o.v} className={`flex cursor-pointer gap-3 rounded-xl border p-4 ${payment === o.v ? "border-brand-600 bg-brand-50/50" : "border-slate-200"}`}>
                   <input type="radio" name="pay" checked={payment === o.v} onChange={() => setPayment(o.v as "cod" | "bank_transfer")} className="mt-1 accent-brand-600" />
@@ -142,6 +151,11 @@ export default function CheckoutPage() {
                 </label>
               ))}
             </div>
+            {payment === "bank_transfer" && (
+              <div className="mt-4">
+                <BankDetails bank={bank} amount={subtotal} />
+              </div>
+            )}
             <label className="label mt-4" htmlFor="notes">Order notes</label>
             <textarea id="notes" className="input min-h-20" value={notes} onChange={(e) => setNotes(e.target.value)} maxLength={1000} placeholder="Delivery timing, special instructions…" />
           </section>

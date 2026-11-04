@@ -772,6 +772,11 @@ create table if not exists public.store_settings (
   warehouse_address text,
   warehouse_lat double precision,
   warehouse_lng double precision,
+  bank_name text,
+  account_title text,
+  account_number text,
+  iban text,
+  branch text,
   updated_at timestamptz not null default now()
 );
 

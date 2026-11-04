@@ -162,7 +162,20 @@ export interface StoreSettings {
   warehouse_address: string | null;
   warehouse_lat: number | null;
   warehouse_lng: number | null;
+  bank_name: string | null;
+  account_title: string | null;
+  account_number: string | null;
+  iban: string | null;
+  branch: string | null;
   updated_at: string;
+}
+
+export interface BankAccount {
+  bank_name: string | null;
+  account_title: string | null;
+  account_number: string | null;
+  iban: string | null;
+  branch: string | null;
 }
 
 export interface Notification {

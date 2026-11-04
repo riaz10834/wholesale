@@ -3,7 +3,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState } from "react";
 import {
-  BarChart3, Boxes, CreditCard, LayoutDashboard, LogOut, MapPinned, Menu, Package, Receipt, ShoppingBag, Store, Tags, Truck, Users, Warehouse, X,
+  BarChart3, Boxes, CreditCard, Landmark, LayoutDashboard, LogOut, MapPinned, Menu, Package, Receipt, ShoppingBag, Store, Tags, Truck, Users, Warehouse, X,
 } from "lucide-react";
 import { useAuth } from "@/components/providers/AuthProvider";
 import { NotificationBell } from "@/components/ui/NotificationBell";
@@ -22,6 +22,7 @@ const NAV = [
   { href: "/admin/customers", label: "Customers", icon: Users },
   { href: "/admin/delivery-persons", label: "Delivery Team", icon: Truck },
   { href: "/admin/payments", label: "Payments", icon: CreditCard },
+  { href: "/admin/bank", label: "Bank account", icon: Landmark },
   { href: "/admin/expenses", label: "Expenses", icon: Receipt },
   { href: "/admin/reports", label: "Reports", icon: BarChart3 },
 ];

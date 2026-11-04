@@ -8,8 +8,9 @@ import { useToast } from "@/components/providers/ToastProvider";
 import { StatusBadge } from "@/components/ui/StatusBadge";
 import { OrderTimeline } from "@/components/ui/OrderTimeline";
 import { RouteMap } from "@/components/maps/RouteMap";
+import { BANK_SELECT, BankDetails } from "@/components/store/BankDetails";
 import { useDispatchPoint } from "@/components/maps/useDispatchPoint";
-import type { Order, OrderStatus, Profile } from "@/lib/types";
+import type { BankAccount, Order, OrderStatus, Profile } from "@/lib/types";
 import { errMsg, fmtDate, isLive, money, placeAddress, timeAgo, variantLabel } from "@/lib/utils";
 
 type Courier = Pick<Profile, "id" | "full_name" | "phone" | "is_online" | "last_lat" | "last_lng" | "last_location_at">;
@@ -28,6 +29,7 @@ function OrderDetail() {
   const supabase = supabaseBrowser();
   const toast = useToast();
   const [order, setOrder] = useState<Order | null>(null);
+  const [bank, setBank] = useState<BankAccount | null>(null);
   const [history, setHistory] = useState<{ status: OrderStatus; created_at: string }[]>([]);
   const [courier, setCourier] = useState<Courier | null>(null);
   const [courierId, setCourierId] = useState<string | null>(null);
@@ -40,7 +42,14 @@ function OrderDetail() {
       supabase.from("orders").select("*, order_items(*), deliveries(id,status,delivery_person_id,assigned_at,started_at,completed_at)").eq("id", id).maybeSingle(),
       supabase.from("order_status_history").select("status,created_at").eq("order_id", id).order("created_at"),
     ]);
-    setOrder(o as unknown as Order);
+    const orderRow = o as unknown as Order;
+    setOrder(orderRow);
+    if (orderRow?.payment_method === "bank_transfer") {
+      const { data: settings } = await supabase.from("store_settings").select(BANK_SELECT).eq("id", 1).maybeSingle();
+      setBank((settings as BankAccount) || null);
+    } else {
+      setBank(null);
+    }
     setHistory((h as { status: OrderStatus; created_at: string }[]) || []);
     const d = o ? (Array.isArray(o.deliveries) ? o.deliveries[0] : o.deliveries) : null;
     setCourierId(d?.delivery_person_id ?? null);
@@ -219,7 +228,12 @@ function OrderDetail() {
             {dispatch && (
               <p className="flex gap-1 text-slate-600"><Warehouse className="mt-0.5 h-4 w-4 shrink-0 text-emerald-600" /> Coming from {dispatch.name}{dispatch.address ? ` · ${dispatch.address}` : ""}</p>
             )}
-            <p className="pt-2 text-slate-500">Payment: {order.payment_method === "cod" ? "Cash on delivery" : order.payment_method.replace("_", " ")}</p>
+            <p className="pt-2 text-slate-500">Payment: {order.payment_method === "cod" ? "Cash on delivery" : "Bank transfer"}</p>
+            {order.payment_method === "bank_transfer" && order.payment_status !== "paid" && (
+              <div className="pt-3">
+                <BankDetails bank={bank} amount={order.total} />
+              </div>
+            )}
           </section>
         </div>
       </div>
