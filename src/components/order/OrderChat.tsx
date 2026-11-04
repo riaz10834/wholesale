@@ -1,6 +1,6 @@
 "use client";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Loader2, Mic, MoreVertical, Send, Square } from "lucide-react";
+import { Loader2, Mic, Send, Square } from "lucide-react";
 import { supabaseBrowser } from "@/lib/supabase/client";
 import { useToast } from "@/components/providers/ToastProvider";
 import type { OrderMessage } from "@/lib/types";
@@ -38,7 +38,6 @@ export function OrderChat({ orderId, meId, title }: { orderId: string; meId: str
   const [seconds, setSeconds] = useState(0);
   const [draft, setDraft] = useState<{ b64: string; mime: string; url: string } | null>(null);
   const [setup, setSetup] = useState(false);
-  const [menuId, setMenuId] = useState<string | null>(null);
   const listRef = useRef<HTMLDivElement>(null);
   const recRef = useRef<MediaRecorder | null>(null);
   const timerRef = useRef<number | null>(null);
@@ -109,7 +108,6 @@ export function OrderChat({ orderId, meId, title }: { orderId: string; meId: str
   async function removeMessage(id: string) {
     if (!confirm("Delete this message?")) return;
     const { data, error } = await supabase.from("order_messages").delete().eq("id", id).select("id");
-    setMenuId(null);
     if (error || !data?.length) {
       return toast.error("Run supabase/message_delete.sql once in the Supabase SQL editor, then try again.");
     }
@@ -178,29 +176,20 @@ export function OrderChat({ orderId, meId, title }: { orderId: string; meId: str
       <div ref={listRef} className="mt-3 flex max-h-80 min-h-36 flex-col gap-2 overflow-y-auto rounded-xl bg-slate-50 p-3">
         {messages.length === 0 && <p className="m-auto text-center text-sm text-slate-400">No messages yet.</p>}
         {messages.map((message) => {
-          const mine = message.sender_id === meId;
+          const mine = message.sender_id?.toLowerCase() === meId?.toLowerCase();
           const when = new Date(message.created_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
           return (
-            <div key={message.id} className={`flex max-w-[85%] items-start gap-1 ${mine ? "ml-auto" : ""}`}>
-              {mine && (
-                <div className="relative">
-                  <button type="button" aria-label="Message options" onClick={() => setMenuId((current) => (current === message.id ? null : message.id))} className="rounded-full p-1 text-slate-400 hover:bg-white">
-                    <MoreVertical className="h-4 w-4" />
-                  </button>
-                  {menuId === message.id && (
-                    <button type="button" onClick={() => removeMessage(message.id)} className="absolute left-0 z-10 mt-1 whitespace-nowrap rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-rose-600 shadow-card">
-                      Delete
-                    </button>
-                  )}
-                </div>
+            <div key={message.id} className={`max-w-[85%] rounded-2xl px-3 py-2 text-sm ${mine ? "ml-auto bg-brand-600 text-white" : "bg-white text-slate-800"}`}>
+              {message.kind === "voice" && message.audio_base64 ? (
+                <audio controls preload="none" src={`data:${message.audio_mime || "audio/webm"};base64,${message.audio_base64}`} className="h-9 max-w-full" />
+              ) : (
+                <p className="whitespace-pre-wrap break-words">{message.body}</p>
               )}
-              <div className={`min-w-0 rounded-2xl px-3 py-2 text-sm ${mine ? "bg-brand-600 text-white" : "bg-white text-slate-800"}`}>
-                {message.kind === "voice" && message.audio_base64 ? (
-                  <audio controls preload="none" src={`data:${message.audio_mime || "audio/webm"};base64,${message.audio_base64}`} className="h-9 max-w-full" />
-                ) : (
-                  <p className="whitespace-pre-wrap break-words">{message.body}</p>
-                )}
-                <p className={`mt-1 text-[10px] ${mine ? "text-brand-100" : "text-slate-400"}`}>{when}</p>
+              <div className="mt-1 flex items-center justify-between gap-3">
+                <p className={`text-[10px] ${mine ? "text-brand-100" : "text-slate-400"}`}>{when}</p>
+                <button type="button" onClick={() => removeMessage(message.id)} className={`text-[11px] font-semibold underline ${mine ? "text-white" : "text-rose-600"}`}>
+                  Delete
+                </button>
               </div>
             </div>
           );
