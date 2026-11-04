@@ -6,8 +6,6 @@ import { findBank } from "@/lib/pkBanks";
 import type { BankAccount } from "@/lib/types";
 import { money } from "@/lib/utils";
 
-export const BANK_SELECT = "bank_name,account_title,account_number,iban,branch";
-
 export function hasBank(bank: BankAccount | null | undefined) {
   return Boolean(bank?.bank_name?.trim() && bank.account_title?.trim() && bank.account_number?.trim());
 }

@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import { Landmark, Loader2 } from "lucide-react";
 import { BankPicker } from "@/components/admin/BankPicker";
 import { supabaseBrowser } from "@/lib/supabase/client";
+import { loadBankAccount, saveBankAccount } from "@/lib/bankAccount";
 import { useToast } from "@/components/providers/ToastProvider";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { errMsg } from "@/lib/utils";
@@ -18,25 +19,19 @@ export default function BankAccountPage() {
 
   useEffect(() => {
     let active = true;
-    supabase
-      .from("store_settings")
-      .select("bank_name,account_title,account_number,iban,branch")
-      .eq("id", 1)
-      .maybeSingle()
-      .then(({ data, error }) => {
-        if (!active) return;
-        if (error) toast.error(error.message.includes("bank_name") ? "Run supabase/add_bank_account.sql in the Supabase SQL editor first." : errMsg(error));
-        if (data) {
-          setForm({
-            bank_name: data.bank_name || "",
-            account_title: data.account_title || "",
-            account_number: data.account_number || "",
-            iban: data.iban || "",
-            branch: data.branch || "",
-          });
-        }
-        setLoading(false);
-      });
+    loadBankAccount(supabase).then((data) => {
+      if (!active) return;
+      if (data) {
+        setForm({
+          bank_name: data.bank_name || "",
+          account_title: data.account_title || "",
+          account_number: data.account_number || "",
+          iban: data.iban || "",
+          branch: data.branch || "",
+        });
+      }
+      setLoading(false);
+    });
     return () => {
       active = false;
     };
@@ -53,20 +48,15 @@ export default function BankAccountPage() {
       return toast.error("Bank name, account title and account number are required");
     }
     setSaving(true);
-    const { error } = await supabase.from("store_settings").upsert({
-      id: 1,
+    const { error } = await saveBankAccount(supabase, {
       bank_name: form.bank_name.trim(),
       account_title: form.account_title.trim(),
       account_number: form.account_number.trim(),
       iban: form.iban.trim() || null,
       branch: form.branch.trim() || null,
-      updated_at: new Date().toISOString(),
     });
     setSaving(false);
-    if (error) {
-      const missing = error.message.includes("bank_name") || error.message.includes("schema cache");
-      return toast.error(missing ? "Run supabase/add_bank_account.sql in the Supabase SQL editor, then save again." : errMsg(error));
-    }
+    if (error) return toast.error(errMsg(error));
     toast.success("Bank account saved. Customers see it when they choose bank transfer.");
   }
 

@@ -8,7 +8,8 @@ import { useAuth } from "@/components/providers/AuthProvider";
 import { useToast } from "@/components/providers/ToastProvider";
 import { supabaseBrowser } from "@/lib/supabase/client";
 import { LocationPicker, type PickedLocation } from "@/components/maps/LocationPicker";
-import { BANK_SELECT, BankDetails } from "@/components/store/BankDetails";
+import { BankDetails } from "@/components/store/BankDetails";
+import { loadBankAccount } from "@/lib/bankAccount";
 import type { BankAccount } from "@/lib/types";
 import { PHONE_RE, errMsg, money, variantLabel } from "@/lib/utils";
 
@@ -30,9 +31,7 @@ export default function CheckoutPage() {
   const [errors, setErrors] = useState<Record<string, string>>({});
 
   useEffect(() => {
-    supabase.from("store_settings").select(BANK_SELECT).eq("id", 1).maybeSingle().then(({ data }) => {
-      if (data) setBank(data as BankAccount);
-    });
+    loadBankAccount(supabase).then(setBank);
   }, [supabase]);
 
   useEffect(() => {

@@ -8,7 +8,8 @@ import { useToast } from "@/components/providers/ToastProvider";
 import { StatusBadge } from "@/components/ui/StatusBadge";
 import { OrderTimeline } from "@/components/ui/OrderTimeline";
 import { RouteMap } from "@/components/maps/RouteMap";
-import { BANK_SELECT, BankDetails } from "@/components/store/BankDetails";
+import { BankDetails } from "@/components/store/BankDetails";
+import { loadBankAccount } from "@/lib/bankAccount";
 import { useDispatchPoint } from "@/components/maps/useDispatchPoint";
 import type { BankAccount, Order, OrderStatus, Profile } from "@/lib/types";
 import { errMsg, fmtDate, isLive, money, placeAddress, timeAgo, variantLabel } from "@/lib/utils";
@@ -45,8 +46,7 @@ function OrderDetail() {
     const orderRow = o as unknown as Order;
     setOrder(orderRow);
     if (orderRow?.payment_method === "bank_transfer") {
-      const { data: settings } = await supabase.from("store_settings").select(BANK_SELECT).eq("id", 1).maybeSingle();
-      setBank((settings as BankAccount) || null);
+      setBank(await loadBankAccount(supabase));
     } else {
       setBank(null);
     }
