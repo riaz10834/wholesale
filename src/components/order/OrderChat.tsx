@@ -44,14 +44,18 @@ export function OrderChat({ orderId, meId, title }: { orderId: string; meId: str
   const draftUrl = useRef<string | null>(null);
 
   const load = useCallback(async () => {
-    const { data, error } = await supabase.from("order_messages").select(MESSAGE_SELECT).eq("order_id", orderId).order("created_at").limit(100);
+    const [{ data, error }, hides] = await Promise.all([
+      supabase.from("order_messages").select(MESSAGE_SELECT).eq("order_id", orderId).order("created_at").limit(100),
+      supabase.from("order_message_hides").select("message_id").eq("user_id", meId),
+    ]);
     if (error) {
       setSetup(/order_messages|schema cache/i.test(error.message));
       return;
     }
+    const hidden = new Set((hides.data || []).map((row) => row.message_id as string));
     setSetup(false);
-    setMessages((data as OrderMessage[]) || []);
-  }, [orderId, supabase]);
+    setMessages(((data as OrderMessage[]) || []).filter((message) => !hidden.has(message.id)));
+  }, [meId, orderId, supabase]);
 
   useEffect(() => {
     load();
@@ -60,6 +64,10 @@ export function OrderChat({ orderId, meId, title }: { orderId: string; meId: str
       .on("postgres_changes", { event: "INSERT", schema: "public", table: "order_messages", filter: `order_id=eq.${orderId}` }, (payload) => {
         const row = payload.new as OrderMessage;
         setMessages((prev) => (prev.some((m) => m.id === row.id) ? prev : [...prev, row]));
+      })
+      .on("postgres_changes", { event: "DELETE", schema: "public", table: "order_messages", filter: `order_id=eq.${orderId}` }, (payload) => {
+        const id = (payload.old as { id?: string }).id;
+        if (id) setMessages((prev) => prev.filter((message) => message.id !== id));
       })
       .subscribe();
     return () => {
@@ -106,12 +114,21 @@ export function OrderChat({ orderId, meId, title }: { orderId: string; meId: str
   }
 
   async function removeMessage(id: string) {
-    if (!confirm("Delete this message?")) return;
-    const { data, error } = await supabase.from("order_messages").delete().eq("id", id).select("id");
-    if (error || !data?.length) {
-      return toast.error("Run supabase/message_delete.sql once in the Supabase SQL editor, then try again.");
+    const message = messages.find((item) => item.id === id);
+    const mine = message?.sender_id?.toLowerCase() === meId?.toLowerCase();
+    if (!confirm(mine ? "Delete this message for both of you?" : "Remove this message from your chat only?")) return;
+    if (mine) {
+      const { data, error } = await supabase.from("order_messages").delete().eq("id", id).select("id");
+      if (error || !data?.length) {
+        return toast.error("Run supabase/message_delete.sql once in the Supabase SQL editor, then try again.");
+      }
+    } else {
+      const { error } = await supabase.from("order_message_hides").insert({ message_id: id, user_id: meId });
+      if (error) {
+        return toast.error("Run supabase/message_delete.sql once in the Supabase SQL editor, then try again.");
+      }
     }
-    setMessages((prev) => prev.filter((message) => message.id !== id));
+    setMessages((prev) => prev.filter((item) => item.id !== id));
   }
 
   async function sendText(e: React.FormEvent) {
