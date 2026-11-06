@@ -1,6 +1,34 @@
 import type { DeliveryStatus, OrderStatus } from "./types";
 
 export const STORE_NAME = "Wholesale-Brand";
+export const SHOP_WHATSAPP_DISPLAY = "0329 5587792";
+
+export function shopWhatsAppUrl(text?: string) {
+  const base = "https://wa.me/923295587792";
+  return text ? `${base}?text=${encodeURIComponent(text)}` : base;
+}
+
+export function orderAlertText(order: {
+  order_number: string;
+  customer_name: string;
+  customer_phone: string;
+  shop_name?: string | null;
+  address?: string | null;
+  total: number;
+  payment_method: string;
+}) {
+  const pay = order.payment_method === "cod" ? "Cash on delivery" : "Bank transfer";
+  return [
+    `New order ${order.order_number}`,
+    order.customer_name,
+    order.customer_phone,
+    order.shop_name || "",
+    order.address || "",
+    `${money(order.total)} · ${pay}`,
+  ]
+    .filter(Boolean)
+    .join("\n");
+}
 const CURRENCY = (process.env.NEXT_PUBLIC_CURRENCY || "PKR").toUpperCase();
 
 export function money(n: number | string | null | undefined) {

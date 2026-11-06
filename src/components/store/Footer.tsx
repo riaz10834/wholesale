@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { STORE_NAME } from "@/lib/utils";
+import { shopWhatsAppUrl, SHOP_WHATSAPP_DISPLAY, STORE_NAME } from "@/lib/utils";
 
 export function Footer() {
   return (
@@ -8,6 +8,9 @@ export function Footer() {
         <div>
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src="/logo.png?v=6" alt={STORE_NAME} className="h-16 w-auto rounded-lg" />
+          <a href={shopWhatsAppUrl()} target="_blank" rel="noreferrer" className="mt-3 inline-block text-sm font-semibold text-emerald-700 hover:underline">
+            WhatsApp {SHOP_WHATSAPP_DISPLAY}
+          </a>
           <p className="mt-2 max-w-xs text-sm text-slate-500">
             Wholesale stock for retailers and shop owners — bulk prices, minimum order quantities, and live-tracked delivery to your door.
           </p>

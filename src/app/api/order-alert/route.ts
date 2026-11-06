@@ -1,15 +1,10 @@
 import { NextResponse } from "next/server";
 import { supabaseServer } from "@/lib/supabase/server";
-import { money } from "@/lib/utils";
+import { orderAlertText } from "@/lib/utils";
 
 export const dynamic = "force-dynamic";
 
-function whatsappPhone(raw: string) {
-  let digits = raw.replace(/\D/g, "");
-  if (digits.startsWith("0")) digits = `92${digits.slice(1)}`;
-  else if (digits.length === 10) digits = `92${digits}`;
-  return digits;
-}
+const SHOP_WHATSAPP = "923295587792";
 
 export async function POST(request: Request) {
   const supabase = supabaseServer();
@@ -24,7 +19,7 @@ export async function POST(request: Request) {
 
   const { data: order } = await supabase
     .from("orders")
-    .select("id,order_number,customer_name,customer_phone,shop_name,total,payment_method,created_at,user_id")
+    .select("id,order_number,customer_name,customer_phone,shop_name,address,total,payment_method,created_at,user_id")
     .eq("id", orderId)
     .maybeSingle();
 
@@ -33,28 +28,24 @@ export async function POST(request: Request) {
     return NextResponse.json({ ok: true, skipped: true });
   }
 
-  const key = process.env.CALLMEBOT_APIKEY;
-  if (!key) return NextResponse.json({ ok: false, missing: true });
+  const token = process.env.WHATSAPP_TOKEN;
+  const phoneId = process.env.WHATSAPP_PHONE_NUMBER_ID;
+  if (!token || !phoneId) return NextResponse.json({ ok: false, missing: true });
 
-  const phone = `+${whatsappPhone(process.env.ADMIN_WHATSAPP || "03295587792")}`;
-  const pay = order.payment_method === "cod" ? "Cash on delivery" : "Bank transfer";
-  const text = [
-    `New order ${order.order_number}`,
-    order.customer_name,
-    order.customer_phone,
-    order.shop_name || "",
-    `${money(order.total)} · ${pay}`,
-  ]
-    .filter(Boolean)
-    .join("\n");
+  const res = await fetch(`https://graph.facebook.com/v21.0/${phoneId}/messages`, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${token}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      messaging_product: "whatsapp",
+      to: SHOP_WHATSAPP,
+      type: "text",
+      text: { preview_url: false, body: orderAlertText(order) },
+    }),
+    cache: "no-store",
+  });
 
-  const url = new URL("https://api.callmebot.com/whatsapp.php");
-  url.searchParams.set("phone", phone);
-  url.searchParams.set("text", text);
-  url.searchParams.set("apikey", key);
-
-  const res = await fetch(url, { cache: "no-store" });
-  const reply = await res.text();
-  const ok = res.ok && !/error|invalid|not activated/i.test(reply);
-  return NextResponse.json({ ok });
+  return NextResponse.json({ ok: res.ok });
 }

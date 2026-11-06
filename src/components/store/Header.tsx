@@ -6,7 +6,7 @@ import { LayoutDashboard, LogOut, Search, ShoppingCart, Truck, User, Menu, X } f
 import { useAuth } from "@/components/providers/AuthProvider";
 import { useCart } from "@/components/providers/CartProvider";
 import { NotificationBell } from "@/components/ui/NotificationBell";
-import { STORE_NAME } from "@/lib/utils";
+import { shopWhatsAppUrl, STORE_NAME } from "@/lib/utils";
 
 export function Header() {
   const { user, profile, signOut } = useAuth();
@@ -57,6 +57,9 @@ export function Header() {
               My Orders
             </Link>
           )}
+          <a href={shopWhatsAppUrl()} target="_blank" rel="noreferrer" className="btn-ghost hidden sm:inline-flex">
+            WhatsApp
+          </a>
           <NotificationBell />
           <Link href="/cart" className="relative rounded-xl p-2 text-slate-700 hover:bg-slate-100" aria-label="Cart">
             <ShoppingCart className="h-5 w-5" />
@@ -91,6 +94,7 @@ export function Header() {
       {menu && (
         <div className="border-t border-slate-200 bg-white sm:hidden">
           <div className="container-x flex flex-col py-2" onClick={() => setMenu(false)}>
+            <a href={shopWhatsAppUrl()} target="_blank" rel="noreferrer" className="rounded-lg px-3 py-2.5 text-sm font-medium hover:bg-slate-50">WhatsApp 0329 5587792</a>
             <Link href="/products" className="rounded-lg px-3 py-2.5 text-sm font-medium hover:bg-slate-50">Catalog</Link>
             {user && profile?.role === "customer" && <Link href="/account" className="rounded-lg px-3 py-2.5 text-sm font-medium hover:bg-slate-50">Shop address</Link>}
             {user && <Link href="/orders" className="rounded-lg px-3 py-2.5 text-sm font-medium hover:bg-slate-50">My Orders</Link>}
